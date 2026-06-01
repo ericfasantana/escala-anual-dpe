@@ -17,12 +17,13 @@
   // (Firestore → Configurações do projeto → Seus apps → Config SDK)
   // ══════════════════════════════════════════════════════
   const firebaseConfig = {
-    apiKey: "SUA_API_KEY",
-    authDomain: "SEU_PROJETO.firebaseapp.com",
-    projectId: "SEU_PROJETO_ID",
-    storageBucket: "SEU_PROJETO.appspot.com",
-    messagingSenderId: "SEU_SENDER_ID",
-    appId: "SEU_APP_ID"
+    apiKey: "AIzaSyDOeDuCIOw_jHQqXr482nN5ZB6idllsU3Y",
+    authDomain: "sistema-anual-ferias-dpe.firebaseapp.com",
+    projectId: "sistema-anual-ferias-dpe",
+    storageBucket: "sistema-anual-ferias-dpe.firebasestorage.app",
+    messagingSenderId: "657082148722",
+    appId: "1:657082148722:web:926bae4e4964adce961feb",
+    measurementId: "G-F39T8ED0T0"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -38,15 +39,32 @@
   };
 
   window.dbLoad = async function(dirKey) {
-    const snap = await getDoc(doc(db, "escala2027", dirKey));
-    return snap.exists() ? snap.data() : null;
+    try {
+      const snap = await getDoc(doc(db, "escala2027", dirKey));
+      return snap.exists() ? snap.data() : null;
+    } catch(e) {
+      console.error("Firestore dbLoad error:", e);
+      if (e.code === "permission-denied") {
+        throw new Error("Acesso negado. Configure as regras do Firestore: allow read, write: if true;");
+      }
+      return null;
+    }
   };
 
   window.dbLoadAll = async function() {
-    const snap = await getDocs(collection(db, "escala2027"));
-    const result = {};
-    snap.forEach(d => { result[d.id] = d.data(); });
-    return result;
+    try {
+      const snap = await getDocs(collection(db, "escala2027"));
+      const result = {};
+      snap.forEach(d => { result[d.id] = d.data(); });
+      return result;
+    } catch(e) {
+      console.error("Firestore error:", e);
+      // Se a coleção não existe ainda, retorna vazio (normal na primeira vez)
+      if (e.code === "permission-denied") {
+        throw new Error("Acesso negado. Verifique as regras do Firestore no console Firebase.");
+      }
+      return {};
+    }
   };
 </script>
 
