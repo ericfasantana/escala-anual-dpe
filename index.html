@@ -880,37 +880,17 @@ function renderResumo() {
   el.innerHTML = html;
 }
 
-let _filtroTimer = null;
-function debounceFiltro() {
-  clearTimeout(_filtroTimer);
-  _filtroTimer = setTimeout(() => {
-    const el = document.getElementById('filtro-nome');
-    const pos = el ? el.selectionStart : 0;
-    renderEscalaConsolidada();
-    // Restaura foco e cursor após render
-    const el2 = document.getElementById('filtro-nome');
-    if (el2) { el2.focus(); try { el2.setSelectionRange(pos, pos); } catch(e){} }
-  }, 300);
-}
-
-function renderEscalaConsolidada() {
-  const el      = document.getElementById('tab-escala');
-  const mesF    = document.getElementById('filtro-mes')?.value || '';
-  const dirF    = document.getElementById('filtro-dir')?.value || '';
-  const nomeF   = (document.getElementById('filtro-nome')?.value || '').toLowerCase();
-
-  let rows = getConsolidatedRows();
-  if (mesF)  rows = rows.filter(r => r.mes == parseInt(mesF));
-  if (dirF)  rows = rows.filter(r => r.dir === dirF);
-  if (nomeF) rows = rows.filter(r => r.nome.toLowerCase().includes(nomeF));
-
-  let filtersHtml = `
-    <div class="filters-row">
+// Inicializa os filtros persistentes (renderizados UMA VEZ)
+function initFiltros() {
+  const el = document.getElementById('tab-escala');
+  if (document.getElementById('filtro-nome')) return; // já existe
+  el.innerHTML = `
+    <div class="filters-row" id="filtros-persistentes">
       <div class="filter-group">
         <label>Mês</label>
         <select id="filtro-mes" onchange="renderEscalaConsolidada()">
           <option value="">Todos os meses</option>
-          ${MESES.map((m,i) => `<option value="${i+1}" ${mesF==i+1?'selected':''}>` + m + '</option>').join('')}
+          ${MESES.map((m,i) => '<option value="'+(i+1)+'">' + m + '</option>').join('')}
         </select>
       </div>
       <div class="filter-group">
@@ -918,18 +898,34 @@ function renderEscalaConsolidada() {
         <select id="filtro-dir" onchange="renderEscalaConsolidada()">
           <option value="">Todas</option>
           ${Object.entries(DIRETORIAS).filter(([k])=>k!=='GABINETE').map(([k,v]) =>
-            `<option value="${k}" ${dirF===k?'selected':''}>` + v.label + '</option>').join('')}
+            '<option value="'+k+'">' + v.label + '</option>').join('')}
         </select>
       </div>
       <div class="filter-group">
         <label>Nome</label>
-        <input type="text" id="filtro-nome" value="${nomeF}"
-               placeholder="Buscar pelo nome…" oninput="debounceFiltro()">
+        <input type="text" id="filtro-nome" placeholder="Buscar pelo nome…"
+               oninput="renderEscalaConsolidada()">
       </div>
-    </div>`;
+    </div>
+    <div id="tabela-escala-resultado"></div>`;
+}
+
+function renderEscalaConsolidada() {
+  initFiltros(); // garante que os filtros existem (não os destrói)
+
+  const mesF  = document.getElementById('filtro-mes')?.value || '';
+  const dirF  = document.getElementById('filtro-dir')?.value || '';
+  const nomeF = (document.getElementById('filtro-nome')?.value || '').toLowerCase();
+  const dest  = document.getElementById('tabela-escala-resultado');
+  if (!dest) return;
+
+  let rows = getConsolidatedRows();
+  if (mesF)  rows = rows.filter(r => r.mes == parseInt(mesF));
+  if (dirF)  rows = rows.filter(r => r.dir === dirF);
+  if (nomeF) rows = rows.filter(r => r.nome.toLowerCase().includes(nomeF));
 
   if (!rows.length) {
-    el.innerHTML = filtersHtml + '<div class="empty-state"><p>Nenhum registro para os filtros selecionados.</p></div>';
+    dest.innerHTML = '<div class="empty-state"><p>Nenhum registro para os filtros selecionados.</p></div>';
     return;
   }
 
@@ -937,7 +933,7 @@ function renderEscalaConsolidada() {
     <div class="table-wrap">
       <div class="print-header">
         <h1>Defensoria Pública do Estado do Piauí</h1>
-        <p id='print-titulo-ano'>Escala Anual de Férias dos Membros DPE/PI — <span id='print-ano-span'></span></p>
+        <p id='print-titulo-ano'>Escala Anual de Férias dos Membros DPE/PI — ${currentAno}</p>
         <div class="resolucao">Resolução CSDPE nº 193/2026 | Portaria GDPG nº 614/2026 | Dados inseridos sob responsabilidade de cada Diretoria</div>
       </div>
       <table class="consolidated-table">
@@ -974,7 +970,7 @@ function renderEscalaConsolidada() {
       </tr>`;
   });
   tableHtml += '</tbody></table></div>';
-  el.innerHTML = filtersHtml + tableHtml;
+  dest.innerHTML = tableHtml;
 }
 
 function renderAllRegistros() {
@@ -1022,19 +1018,14 @@ function switchTab(id, btn) {
 
 function gerarPDF() {
   switchTab('tab-escala', document.querySelectorAll('.tab-btn')[1]);
-  if (document.getElementById('filtro-mes')) document.getElementById('filtro-mes').value = '';
-  if (document.getElementById('filtro-dir')) document.getElementById('filtro-dir').value = '';
-  if (document.getElementById('filtro-nome')) document.getElementById('filtro-nome').value = '';
-  renderEscalaConsolidada();
-  // Atualiza cabeçalho do PDF com o ano selecionado
-  setTimeout(() => {
-    const sp = document.getElementById('print-ano-span');
-    if (sp) sp.textContent = currentAno;
-    ['h2-ano','h2-ano-gab'].forEach(id => {
-      const el = document.getElementById(id); if(el) el.textContent = currentAno;
-    });
-    window.print();
-  }, 400);
+  const fmEl = document.getElementById('filtro-mes');
+  const fdEl = document.getElementById('filtro-dir');
+  const fnEl = document.getElementById('filtro-nome');
+  if (fmEl) fmEl.value = '';
+  if (fdEl) fdEl.value = '';
+  if (fnEl) fnEl.value = '';
+  renderEscalaConsolidada(); // já insere currentAno no cabeçalho via template literal
+  setTimeout(() => window.print(), 400);
 }
 
 // UTILS
