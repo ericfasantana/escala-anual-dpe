@@ -84,9 +84,13 @@
   // Na primeira conexão com Firestore vazio, popula todos os dados das planilhas
   window.dbSeed = async function() {
     try {
-      // Verifica se já foi feito o seed (doc de controle)
-      const ctrl = await withTimeout(getDoc(doc(db,'_controle','seed')), 8000, 'timeout');
-      if (ctrl.exists() && ctrl.data().done) return; // já seedado
+      // Verifica se já existe dado real no Firestore (não apenas a flag de controle)
+      // Isso evita o problema de seed "falso": marcado como done mas sem dados
+      const testSnap = await withTimeout(getDoc(doc(db,'escala2027','DPG')), 8000, 'timeout');
+      if (testSnap.exists() && Object.keys(testSnap.data()).length > 0) {
+        console.log('[SEED] Dados já existem no Firestore — pulando seed.');
+        return;
+      }
       
       console.log('[SEED] Iniciando população automática do Firestore...');
       const dadosSeed = window.DADOS_ANOS || {};
