@@ -690,9 +690,6 @@ async function doLogin() {
   document.getElementById('topbar-nome-diretoria').textContent = DIRETORIAS[dir].label;
   await Promise.all([carregarSenhas(), carregarAnosExtras()]);
   renderAnoSelector();
-  // Persiste sessão para sobreviver a F5
-  sessionStorage.setItem('dpe_user', dir);
-  sessionStorage.setItem('dpe_ano', String(currentAno));
 
   if (dir === 'GABINETE') renderGabinete();
   else renderDiretoria(dir);
@@ -700,8 +697,6 @@ async function doLogin() {
 
 function doLogout() {
   currentUser = null; currentData = {}; currentAno = 2026;
-  sessionStorage.removeItem('dpe_user');
-  sessionStorage.removeItem('dpe_ano');
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-senha').value = '';
@@ -1010,9 +1005,6 @@ function getConsolidatedRows() {
           ? (entry.portaria_p2 || entry.portaria2027 || d.portaria || '')
           : (entry.portaria_p1 || entry.portaria2027 || d.portaria || '');
         if (ini && fim) {
-          // Só inclui etapas cujo ano da data de início bate com currentAno
-          const anoData = parseInt(ini.split('/')[2]) || 0;
-          if (anoData !== currentAno) return;
           rows.push({
             dir, dirLabel: cfg.label,
             matricula: d.matricula, nome: d.nome, lotacao: d.lotacao,
@@ -1154,7 +1146,7 @@ function renderEscalaConsolidada() {
   rows.forEach(r => {
     if (r.mes !== lastMes) {
       lastMes = r.mes;
-      tableHtml += `<tr class="mes-header"><td colspan="6">${MESES[r.mes-1]?.toUpperCase() || '?'}/2027</td></tr>`;
+      tableHtml += `<tr class="mes-header"><td colspan="6">${MESES[r.mes-1]?.toUpperCase() || '?'}/${currentAno}</td></tr>`;
     }
     tableHtml += `
       <tr class="${r.alterado ? 'row-alterado' : ''}">
@@ -1241,44 +1233,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('login-senha').addEventListener('keypress', e => {
     if (e.key === 'Enter') doLogin();
   });
-
-  // Restaura sessão após F5 — aguarda Firebase inicializar
-  const savedUser = sessionStorage.getItem('dpe_user');
-  const savedAno  = sessionStorage.getItem('dpe_ano');
-  if (savedUser && DIRETORIAS[savedUser]) {
-    const tryRestore = setInterval(async () => {
-      if (!firebaseReady) return;
-      clearInterval(tryRestore);
-      currentUser = savedUser;
-      currentAno  = savedAno ? parseInt(savedAno) : 2026;
-      showLoading('Restaurando sessão...');
-      try {
-        await Promise.all([carregarSenhas(), carregarAnosExtras()]);
-        if (currentUser !== 'GABINETE') {
-          const saved = await window.dbLoad(currentAno, currentUser);
-          currentData = saved || {};
-        }
-        hideLoading();
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app').style.display = 'flex';
-        document.getElementById('topbar-nome-diretoria').textContent = DIRETORIAS[currentUser].label;
-        renderAnoSelector();
-        if (currentUser === 'GABINETE') renderGabinete();
-        else renderDiretoria(currentUser);
-      } catch(e) {
-        hideLoading();
-        sessionStorage.removeItem('dpe_user');
-        sessionStorage.removeItem('dpe_ano');
-      }
-    }, 200);
-    // Timeout de segurança: 12s
-    setTimeout(() => {
-      clearInterval(tryRestore);
-      sessionStorage.removeItem('dpe_user');
-      sessionStorage.removeItem('dpe_ano');
-      hideLoading();
-    }, 12000);
-  }
 });
 </script>
 </body>
