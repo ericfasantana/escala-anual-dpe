@@ -341,15 +341,18 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--papel);color:var(--
 .toggle-switch input:checked + .toggle-slider::before{transform:translateX(18px)}
 .toggle-desc{font-size:11px;color:var(--cinza-mid);line-height:1.4}
 .badge-alterado{background:#fdf0d0;color:#7a4a00;border:1px solid rgba(201,162,39,.4)}
-.ano-selector{display:flex;gap:4px;align-items:center}
-.ano-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);
-  padding:4px 10px;border-radius:2px;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
-.ano-btn:hover{background:rgba(255,255,255,.2);color:#fff}
-.ano-btn.active{background:rgba(255,255,255,.25);color:#fff;border-color:rgba(255,255,255,.5);font-weight:700}
-.ano-btn.active{background:rgba(255,255,255,.25);color:#fff;border-color:rgba(255,255,255,.5);font-weight:700}
+.ano-selector{display:flex;align-items:center;gap:6px}
+.ano-select-wrap{position:relative;display:flex;align-items:center}
+.ano-select{appearance:none;-webkit-appearance:none;background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.25);color:#fff;padding:5px 28px 5px 12px;
+  border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;
+  cursor:pointer;outline:none;transition:all .15s;min-width:72px}
+.ano-select:hover,.ano-select:focus{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.5)}
+.ano-select option{background:#1a4a2e;color:#fff;font-weight:500}
+.ano-select-arrow{position:absolute;right:8px;pointer-events:none;color:rgba(255,255,255,.7);font-size:10px}
 .ano-add{background:transparent;border:1px dashed rgba(255,255,255,.35);color:rgba(255,255,255,.6);
   width:24px;height:24px;border-radius:50%;font-size:16px;line-height:1;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0;margin-left:4px}
+  display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0}
 .ano-add:hover{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.6)}
 tr.row-alterado td{background:#fffbec!important}
 tr.row-alterado:hover td{background:#fff8dc!important}
@@ -541,14 +544,12 @@ function renderAnoSelector() {
   const todos = [...new Set([...anosBase, ...anosExtras])].sort((a,b)=>a-b);
   const el = document.getElementById('ano-selector');
   if (!el) return;
-  let btns = todos.map(a =>
-    '<button class="ano-btn ' + (a===currentAno?'active':'') + '" onclick="switchAno(' + a + ')">' + a + '</button>'
-  ).join('<span style="color:rgba(255,255,255,.3);margin:0 2px">|</span>');
-  // Botão + só para o Gabinete
-  if (currentUser === 'GABINETE') {
-    btns += '<button class="ano-add" onclick="adicionarAno()" title="Adicionar novo ano">+</button>';
-  }
-  el.innerHTML = btns;
+  const opts = todos.map(a =>
+    '<option value="' + a + '"' + (a===currentAno?' selected':'') + '>' + a + '</option>'
+  ).join('');
+  const addBtn = currentUser==='GABINETE'
+    ? '<button class="ano-add" onclick="adicionarAno()" title="Adicionar novo ano">+</button>' : '';
+  el.innerHTML = '<div class="ano-select-wrap"><select class="ano-select" onchange="switchAno(parseInt(this.value))">' + opts + '</select><span class="ano-select-arrow">▾</span></div>' + addBtn;
 }
 
 async function adicionarAno() {
