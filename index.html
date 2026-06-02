@@ -1036,8 +1036,14 @@ function renderResumo() {
     const saved = allSavedData[dir] || {};
     Object.values(saved).forEach(v => { if (v && v.alterado) totalAlterados++; });
   });
-  const badgeAlteracoes = totalAlterados > 0
-    ? '<div class="badge-alteracoes"><div class="badge-alteracoes-dot"></div><span>⚠ ' + totalAlterados + ' registro' + (totalAlterados>1?'s':'') + ' com alteração de férias — veja destaque na aba <strong>Escala por Mês</strong></span></div>' : '';
+  const corBadge = totalAlterados > 0 ? '#fff3cd' : '#f0f6f2';
+  const corBorda = totalAlterados > 0 ? '#ffc107' : 'rgba(74,145,101,.2)';
+  const corTexto = totalAlterados > 0 ? '#856404' : 'var(--cinza-mid)';
+  const icone    = totalAlterados > 0 ? '⚠' : '✓';
+  const msg      = totalAlterados > 0
+    ? totalAlterados + ' registro' + (totalAlterados>1?'s':'') + ' com alteração de férias — veja destaque na aba <strong>Escala por Mês</strong>'
+    : 'Nenhuma alteração de férias registrada pelas diretorias';
+  const badgeAlteracoes = '<div style="display:flex;align-items:center;gap:8px;background:'+corBadge+';border:1px solid '+corBorda+';color:'+corTexto+';border-radius:3px;padding:10px 14px;font-size:12px;margin-bottom:16px"><span style="font-size:14px">'+icone+'</span><span>'+msg+'</span></div>';
   const dirs = Object.keys(DIRETORIAS).filter(k => k !== 'GABINETE');
   let html = badgeAlteracoes + '<div class="progress-summary">';
   dirs.forEach(dir => {
@@ -1060,7 +1066,7 @@ function renderResumo() {
     <div class="status-bar">
       <div class="status-dot"></div>
       <span>Total de etapas na escala: <strong>${total}</strong>
-        · ${withSaved} com dados 2027 inseridos
+        · ${withSaved} com dados ${currentAno} inseridos
         · ${total-withSaved} usando dados de referência</span>
     </div>`;
   el.innerHTML = html;
