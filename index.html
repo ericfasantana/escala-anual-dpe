@@ -381,6 +381,14 @@ tr.row-alterado:hover td{background:#fff8dc!important}
   .login-card{padding:32px 24px}
   .etapas-grid{grid-template-columns:1fr}
 }
+
+/* BUSCA DIRETORIA */
+.busca-dir-wrap{margin-bottom:12px}
+.busca-defensor-input{width:100%;padding:10px 14px;border:1.5px solid var(--cinza-light);
+  border-radius:3px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;
+  color:var(--cinza-escuro);background:var(--branco);outline:none;transition:border-color .15s}
+.busca-defensor-input:focus{border-color:var(--verde-mid)}
+.defensor-row.hidden-by-search{display:none}
 </style>
 </head>
 <body>
@@ -664,16 +672,11 @@ async function doLogin() {
   errEl.style.display = 'none';
 
   if (!dir) { errEl.textContent='Selecione a diretoria.'; errEl.style.display='block'; return; }
-  if (!firebaseReady) {
-    errEl.textContent = 'Aguarde: Firebase ainda está conectando…'; errEl.style.display='block'; return;
-  }
-
-  // Carrega senhas dinâmicas do Firestore ANTES de validar,
-  // para que senhas alteradas pelo Gabinete já valham na primeira tentativa
-  await carregarSenhas();
-
   if (senha !== getSenha(dir)) {
     errEl.textContent = 'Senha incorreta.'; errEl.style.display='block'; return;
+  }
+  if (!firebaseReady) {
+    errEl.textContent = 'Aguarde: Firebase ainda está conectando…'; errEl.style.display='block'; return;
   }
 
   showLoading('Carregando dados do Firebase...');
@@ -738,11 +741,18 @@ function renderDiretoria(dir) {
       <div class="status-dot"></div>
       <span id="status-text">${savedCount} de ${defensores.length} registros preenchidos</span>
     </div>
-    <div class="table-wrap">
+    <div class="busca-dir-wrap">
+      <input type="text" id="busca-defensor" class="busca-defensor-input"
+             placeholder="🔍  Buscar defensor(a) pelo nome ou lotação..."
+             oninput="filtrarDefensores()">
+    </div>
+    <div class="table-wrap" id="tabela-defensores-wrap">
       <div class="table-header-row" style="grid-template-columns:1fr 120px 2fr auto">
         <span>Defensor(a)</span><span>Matrícula</span><span>Portaria (ref. 2026)</span><span></span>
       </div>
-      ${defensores.map((d,i) => renderDefensorRow(d,i,dir)).join('')}
+      <div id="defensores-list">
+        ${defensores.map((d,i) => renderDefensorRow(d,i,dir)).join('')}
+      </div>
     </div>
     <button class="btn-novo-defensor" onclick="toggleNovoDefensorForm()">＋ Adicionar Defensor / Concessão</button>
     <div class="novo-defensor-form" id="novo-defensor-form">
@@ -761,6 +771,36 @@ function renderDiretoria(dir) {
     </div>
   `;
   const h2el = document.getElementById('h2-ano'); if(h2el) h2el.textContent = currentAno;
+}
+
+
+
+function mascaraData(el) {
+  // Remove tudo que não é dígito
+  let v = el.value.replace(/\D/g, '');
+  // Limita a 8 dígitos
+  if (v.length > 8) v = v.slice(0, 8);
+  // Formata progressivamente: dd/mm/aaaa
+  if (v.length >= 5) {
+    v = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4);
+  } else if (v.length >= 3) {
+    v = v.slice(0,2) + '/' + v.slice(2);
+  }
+  el.value = v;
+}
+
+function filtrarDefensores() {
+  const q = (document.getElementById('busca-defensor')?.value || '').toLowerCase().trim();
+  document.querySelectorAll('#defensores-list .defensor-row').forEach(row => {
+    const nome = (row.querySelector('.defensor-name')?.textContent || '').toLowerCase();
+    const lot  = (row.querySelector('.defensor-lotacao')?.textContent || '').toLowerCase();
+    if (!q || nome.includes(q) || lot.includes(q)) {
+      row.classList.remove('hidden-by-search');
+    } else {
+      row.classList.add('hidden-by-search');
+      row.classList.remove('expanded'); // fecha se estava aberto
+    }
+  });
 }
 
 function renderDefensorRow(d, idx, dir) {
@@ -801,12 +841,14 @@ function renderForm(d, saved, idx, dir) {
         <div class="date-field">
           <label>Início</label>
           <input type="text" id="inp-${idx}-${key}-ini" value="${v(key+'_ini')}"
-                 placeholder="dd/mm/aaaa" oninput="markChanged(this)">
+                 placeholder="ddmmaaaa" maxlength="10"
+                 oninput="mascaraData(this);markChanged(this)">
         </div>
         <div class="date-field">
           <label>Fim</label>
           <input type="text" id="inp-${idx}-${key}-fim" value="${v(key+'_fim')}"
-                 placeholder="dd/mm/aaaa" oninput="markChanged(this)">
+                 placeholder="ddmmaaaa" maxlength="10"
+                 oninput="mascaraData(this);markChanged(this)">
         </div>
       </div>
     </div>`;
