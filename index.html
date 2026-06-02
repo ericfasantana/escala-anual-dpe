@@ -503,6 +503,33 @@ function toggleSenhaVisivel(inputId, btnEl) {
   else { inp.type = 'password'; btnEl.textContent = '👁'; }
 }
 
+function renderAcessosTab() {
+  const el = document.getElementById('tab-acessos');
+  if (!el) return;
+  const dirs = Object.entries(DIRETORIAS);
+  const cards = dirs.map(([key, cfg]) => {
+    const id = 'senha-inp-' + key;
+    const atual = getSenha(key);
+    return `<div class="acessos-card">
+      <div class="acessos-card-info">
+        <div class="acessos-card-label">${cfg.label}</div>
+        <div class="acessos-card-hint">${key==='GABINETE'?'Visão consolidada':'Acesso da diretoria'}</div>
+      </div>
+      <div class="senha-wrap">
+        <input type="password" id="${id}" value="${atual}" placeholder="Nova senha" autocomplete="new-password">
+        <button class="btn-eye" onclick="toggleSenhaVisivel('${id}',this)" title="Mostrar/ocultar">👁</button>
+        <button class="btn-salvar-senha" onclick="salvarSenha('${key}',document.getElementById('${id}').value,this)">Salvar</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div style="padding:4px 0 20px">
+    <div class="instrucoes-box">
+      <strong>Gerenciar Acessos:</strong> clique em 👁 para ver a senha atual de cada unidade.
+      Digite a nova senha e clique em <strong>Salvar</strong> — a mudança vale imediatamente para todos, sem atualizar o sistema.
+    </div>
+    <div class="table-wrap" style="padding:16px">${cards}</div></div>`;
+}
+
 function renderGerenciarAcessos() {
   const mc = document.getElementById('main-content');
   const dirs = Object.entries(DIRETORIAS);
@@ -691,7 +718,7 @@ function renderDiretoria(dir) {
         <h2>Escala de Férias — <span id='h2-ano'></span></h2>
         <p>${dados?.label || dir} · ${defensores.length} registros de concessão</p>
       </div>
-      ${dir === 'DPG' ? '<button class="btn-pdf" style="background:var(--verde-mid)" onclick="renderGerenciarAcessos()">🔑 Gerenciar Acessos</button>' : ''}
+
     </div>
     <div class="instrucoes-box">
       <strong>Instruções:</strong> Cada linha representa uma concessão (portaria).
@@ -904,10 +931,12 @@ async function renderGabinete() {
       <button class="tab-btn active" onclick="switchTab('tab-resumo',this)">Resumo</button>
       <button class="tab-btn"        onclick="switchTab('tab-escala',this)">Escala por Mês</button>
       <button class="tab-btn"        onclick="switchTab('tab-all',this)">Todos os Registros</button>
+      <button class="tab-btn"        onclick="switchTab('tab-acessos',this);renderAcessosTab()">🔑 Acessos</button>
     </div>
     <div class="tab-panel active" id="tab-resumo"><div style="padding:20px;text-align:center;color:#aaa">Carregando…</div></div>
     <div class="tab-panel" id="tab-escala"></div>
     <div class="tab-panel" id="tab-all"></div>
+    <div class="tab-panel" id="tab-acessos"></div>
   `;
 
   showLoading('Carregando todas as diretorias do Firebase...');
