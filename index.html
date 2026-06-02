@@ -81,6 +81,52 @@
       return result;
     } catch(e) { firestoreErro(e, 'dbLoadAll'); }
   };
+
+  // ── SEED AUTOMÁTICO ────────────────────────────────────────────────────────
+  // Na primeira conexão com Firestore vazio, popula todos os dados das planilhas
+  window.dbSeed = async function() {
+    try {
+      // Verifica se já foi feito o seed (doc de controle)
+      const ctrl = await withTimeout(getDoc(doc(db,'_controle','seed')), 8000, 'timeout');
+      if (ctrl.exists() && ctrl.data().done) return; // já seedado
+      
+      console.log('[SEED] Iniciando população automática do Firestore...');
+      const anos = Object.keys(window.DADOS_ANOS || {}).map(Number);
+      
+      for (const ano of anos) {
+        const dadosAno = window.DADOS_ANOS[ano];
+        for (const [dirKey, dirData] of Object.entries(dadosAno)) {
+          const defensores = dirData.defensores || [];
+          const payload = {};
+          defensores.forEach((d, i) => {
+            const key = d.matricula + '_' + i;
+            payload[key] = {
+              portaria_p1: d.portaria || '',
+              portaria_p2: d.portaria || '',
+              portaria2027: d.portaria || '',
+              p1e1_ini: d.p1e1_ini || '', p1e1_fim: d.p1e1_fim || '',
+              p1e2_ini: d.p1e2_ini || '', p1e2_fim: d.p1e2_fim || '',
+              p1e3_ini: d.p1e3_ini || '', p1e3_fim: d.p1e3_fim || '',
+              p2e1_ini: d.p2e1_ini || '', p2e1_fim: d.p2e1_fim || '',
+              p2e2_ini: d.p2e2_ini || '', p2e2_fim: d.p2e2_fim || '',
+              p2e3_ini: d.p2e3_ini || '', p2e3_fim: d.p2e3_fim || '',
+              alterado: false
+            };
+          });
+          if (Object.keys(payload).length > 0) {
+            await withTimeout(setDoc(doc(db,'escala'+ano, dirKey), payload), 15000, 'timeout seed');
+            console.log('[SEED] ' + ano + '/' + dirKey + ': ' + Object.keys(payload).length + ' registros');
+          }
+        }
+      }
+      // Marca como concluído
+      await setDoc(doc(db,'_controle','seed'), {done: true, data: new Date().toISOString()});
+      console.log('[SEED] Concluído!');
+    } catch(e) {
+      console.warn('[SEED] Erro (não crítico):', e.message);
+    }
+  };
+
 </script>
 
 <style>
@@ -433,6 +479,7 @@ window.addEventListener('load', () => {
     if (typeof window.dbSave === 'function') {
       firebaseReady = true;
       clearInterval(check);
+      window.dbSeed(); // seed automático na primeira conexão
       document.getElementById('firebase-status').innerHTML =
         '<strong style="color:var(--verde)">✓ Conectado ao Firebase</strong> · Dados salvos na nuvem, não no seu computador.';
       document.getElementById('btn-login').disabled = false;
@@ -583,14 +630,14 @@ function renderForm(d, saved, idx, dir) {
       </div>
     </div>`;
   return `
-    <div class="portaria-row">
-      <label>Portaria de Concessão:</label>
-      <input type="text" id="inp-${idx}-portaria"
-             value="${saved.portaria2027 || d.portaria || ''}"
-             placeholder="Ex: PORTARIA DDPR Nº 001/2027">
-    </div>
     <div class="periodo-block">
-      <div class="periodo-title">Período 1 — até 30 dias | máx. 3 etapas</div>
+      <div class="periodo-title">Período 1 — até 30 dias | máx. 3 etapas (15+15, 10+10+10 ou 20+10 dias)</div>
+      <div class="portaria-row">
+        <label>Portaria P1:</label>
+        <input type="text" id="inp-${idx}-portaria_p1"
+               value="${saved.portaria_p1 || d.portaria || ''}"
+               placeholder="Ex: PORTARIA GDPG Nº 001/2027">
+      </div>
       <div class="etapas-grid">
         ${etapa('p1e1','Etapa 1 — Período 1',false)}
         ${etapa('p1e2','Etapa 2 — Período 1',true)}
@@ -598,7 +645,13 @@ function renderForm(d, saved, idx, dir) {
       </div>
     </div>
     <div class="periodo-block">
-      <div class="periodo-title">Período 2 — até 30 dias | máx. 3 etapas</div>
+      <div class="periodo-title">Período 2 — até 30 dias | máx. 3 etapas (15+15, 10+10+10 ou 20+10 dias)</div>
+      <div class="portaria-row">
+        <label>Portaria P2:</label>
+        <input type="text" id="inp-${idx}-portaria_p2"
+               value="${saved.portaria_p2 || d.portaria || ''}"
+               placeholder="Ex: PORTARIA GDPG Nº 001/2027 (se diferente do P1)">
+      </div>
       <div class="etapas-grid">
         ${etapa('p2e1','Etapa 1 — Período 2',false)}
         ${etapa('p2e2','Etapa 2 — Período 2',true)}
@@ -637,8 +690,12 @@ async function saveDefensor(idx, dir, matricula) {
   const fields = ['p1e1','p1e2','p1e3','p2e1','p2e2','p2e3'];
   const entry  = {};
 
-  const portEl = document.getElementById(`inp-${idx}-portaria`);
-  if (portEl) entry.portaria2027 = portEl.value.trim();
+  const portP1 = document.getElementById(`inp-${idx}-portaria_p1`);
+  const portP2 = document.getElementById(`inp-${idx}-portaria_p2`);
+  if (portP1) entry.portaria_p1 = portP1.value.trim();
+  if (portP2) entry.portaria_p2 = portP2.value.trim();
+  // Mantém portaria2027 para compatibilidade retroativa
+  if (portP1) entry.portaria2027 = portP1.value.trim();
 
   const altEl = document.getElementById(`inp-${idx}-alterado`);
   if (altEl) entry.alterado = altEl.checked;
@@ -765,11 +822,16 @@ function getConsolidatedRows() {
       ['p1e1','p1e2','p1e3','p2e1','p2e2','p2e3'].forEach(f => {
         const ini = entry[f+'_ini'] || d[f+'_ini'] || '';
         const fim = entry[f+'_fim'] || d[f+'_fim'] || '';
+        const isP2 = f.startsWith('p2');
+        const portaria = isP2
+          ? (entry.portaria_p2 || entry.portaria2027 || d.portaria || '')
+          : (entry.portaria_p1 || entry.portaria2027 || d.portaria || '');
         if (ini && fim) {
           rows.push({
             dir, dirLabel: cfg.label,
             matricula: d.matricula, nome: d.nome, lotacao: d.lotacao,
-            portaria: entry.portaria2027 || d.portaria || '',
+            portaria: portaria,
+            periodo: isP2 ? 'P2' : 'P1',
             inicio: ini, fim: fim,
             mes: parseMonth(ini),
             fromSaved: !!saved[key],
@@ -818,6 +880,19 @@ function renderResumo() {
   el.innerHTML = html;
 }
 
+let _filtroTimer = null;
+function debounceFiltro() {
+  clearTimeout(_filtroTimer);
+  _filtroTimer = setTimeout(() => {
+    const el = document.getElementById('filtro-nome');
+    const pos = el ? el.selectionStart : 0;
+    renderEscalaConsolidada();
+    // Restaura foco e cursor após render
+    const el2 = document.getElementById('filtro-nome');
+    if (el2) { el2.focus(); try { el2.setSelectionRange(pos, pos); } catch(e){} }
+  }, 300);
+}
+
 function renderEscalaConsolidada() {
   const el      = document.getElementById('tab-escala');
   const mesF    = document.getElementById('filtro-mes')?.value || '';
@@ -849,7 +924,7 @@ function renderEscalaConsolidada() {
       <div class="filter-group">
         <label>Nome</label>
         <input type="text" id="filtro-nome" value="${nomeF}"
-               placeholder="Buscar pelo nome…" oninput="renderEscalaConsolidada()">
+               placeholder="Buscar pelo nome…" oninput="debounceFiltro()">
       </div>
     </div>`;
 
@@ -862,7 +937,7 @@ function renderEscalaConsolidada() {
     <div class="table-wrap">
       <div class="print-header">
         <h1>Defensoria Pública do Estado do Piauí</h1>
-        <p>Escala Anual de Férias dos Membros DPE/PI — 2027</p>
+        <p id='print-titulo-ano'>Escala Anual de Férias dos Membros DPE/PI — <span id='print-ano-span'></span></p>
         <div class="resolucao">Resolução CSDPE nº 193/2026 | Portaria GDPG nº 614/2026 | Dados inseridos sob responsabilidade de cada Diretoria</div>
       </div>
       <table class="consolidated-table">
@@ -871,9 +946,10 @@ function renderEscalaConsolidada() {
             <th>Matrícula</th>
             <th>Nome do(a) Defensor(a)</th>
             <th>Lotação / Defensoria</th>
+            <th>Per.</th>
             <th>Início</th>
             <th>Fim</th>
-            <th>Portaria</th>
+            <th>Portaria de Concessão</th>
           </tr>
         </thead>
         <tbody>`;
@@ -889,6 +965,9 @@ function renderEscalaConsolidada() {
         <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${r.matricula}</td>
         <td style="font-weight:500">${r.nome}${r.alterado ? ' <span class="badge badge-alterado" style="font-size:9px">↺</span>' : ''}</td>
         <td>${r.lotacao}</td>
+        <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center">
+          <span class="badge ${r.periodo==='P2'?'badge-pending':'badge-ok'}" style="font-size:9px">${r.periodo}</span>
+        </td>
         <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap">${r.inicio}</td>
         <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap">${r.fim}</td>
         <td style="font-size:11px">${r.portaria}</td>
@@ -942,13 +1021,20 @@ function switchTab(id, btn) {
 }
 
 function gerarPDF() {
-  // Garante que a aba escala está ativa e sem filtros
   switchTab('tab-escala', document.querySelectorAll('.tab-btn')[1]);
   if (document.getElementById('filtro-mes')) document.getElementById('filtro-mes').value = '';
   if (document.getElementById('filtro-dir')) document.getElementById('filtro-dir').value = '';
   if (document.getElementById('filtro-nome')) document.getElementById('filtro-nome').value = '';
   renderEscalaConsolidada();
-  setTimeout(() => window.print(), 400);
+  // Atualiza cabeçalho do PDF com o ano selecionado
+  setTimeout(() => {
+    const sp = document.getElementById('print-ano-span');
+    if (sp) sp.textContent = currentAno;
+    ['h2-ano','h2-ano-gab'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.textContent = currentAno;
+    });
+    window.print();
+  }, 400);
 }
 
 // UTILS
