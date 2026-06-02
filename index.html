@@ -354,6 +354,23 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--papel);color:var(--
 tr.row-alterado td{background:#fffbec!important}
 tr.row-alterado:hover td{background:#fff8dc!important}
 
+
+/* GERENCIAR ACESSOS */
+.acessos-card{background:var(--branco);border:1px solid var(--linha);border-radius:4px;padding:20px 24px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.acessos-card-info{flex:1;min-width:180px}
+.acessos-card-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--cinza-escuro)}
+.acessos-card-hint{font-size:11px;color:var(--cinza-mid);margin-top:3px}
+.senha-wrap{display:flex;align-items:center;gap:6px;min-width:260px}
+.senha-wrap input{flex:1;padding:8px 10px;border:1.5px solid var(--cinza-light);border-radius:3px;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--cinza-escuro);background:var(--branco);outline:none;transition:border-color .15s}
+.senha-wrap input:focus{border-color:var(--verde-mid)}
+.btn-eye{background:transparent;border:none;cursor:pointer;color:var(--cinza-mid);font-size:16px;padding:4px;line-height:1;transition:color .15s}
+.btn-eye:hover{color:var(--cinza-escuro)}
+.btn-salvar-senha{background:var(--verde);color:#fff;border:none;border-radius:2px;padding:8px 14px;
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;white-space:nowrap;transition:background .15s}
+.btn-salvar-senha:hover{background:var(--verde-mid)}
+.btn-salvar-senha.saved{background:#4a9165}
+
 @media(max-width:640px){
   .main-content{padding:16px}
   .topbar{padding:0 16px}
@@ -449,6 +466,75 @@ let currentUser = null;
 let currentData = {};
 let allSavedData = {};
 let anosExtras = []; // anos criados dinamicamente (além de 2026 e 2027)
+let senhasDinamicas = {}; // senhas carregadas do Firestore (sobrepõem as padrão)
+
+// ── Gerenciamento de senhas via Firestore ──────────────────────────────────
+async function carregarSenhas() {
+  try {
+    const snap = await window.dbLoad('_controle', 'senhas');
+    if (snap) senhasDinamicas = snap;
+  } catch(e) { /* usa senhas padrão */ }
+}
+
+function getSenha(dirKey) {
+  return senhasDinamicas[dirKey] || DIRETORIAS[dirKey]?.senha || '';
+}
+
+async function salvarSenha(dirKey, novaSenha, btnEl) {
+  if (!novaSenha || novaSenha.trim().length < 4) {
+    alert('A senha deve ter pelo menos 4 caracteres.'); return;
+  }
+  senhasDinamicas[dirKey] = novaSenha.trim();
+  showLoading('Salvando senha...');
+  try {
+    await window.dbSave('_controle', 'senhas', senhasDinamicas);
+    hideLoading();
+    if (btnEl) { btnEl.textContent = '✓ Salva'; btnEl.classList.add('saved'); setTimeout(() => { btnEl.textContent = 'Salvar'; btnEl.classList.remove('saved'); }, 2000); }
+  } catch(e) { hideLoading(); alert('Erro ao salvar: ' + e.message); }
+}
+
+function toggleSenhaVisivel(inputId, btnEl) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  if (inp.type === 'password') { inp.type = 'text'; btnEl.textContent = '🙈'; }
+  else { inp.type = 'password'; btnEl.textContent = '👁'; }
+}
+
+function renderGerenciarAcessos() {
+  const mc = document.getElementById('main-content');
+  const dirs = Object.entries(DIRETORIAS);
+  let cards = dirs.map(([key, cfg]) => {
+    const id = 'senha-inp-' + key;
+    const atual = getSenha(key);
+    return `
+    <div class="acessos-card">
+      <div class="acessos-card-info">
+        <div class="acessos-card-label">${cfg.label}</div>
+        <div class="acessos-card-hint">Acesso: ${key === 'GABINETE' ? 'Gabinete DPG' : 'Diretoria'}</div>
+      </div>
+      <div class="senha-wrap">
+        <input type="password" id="${id}" value="${atual}" placeholder="Nova senha" autocomplete="new-password">
+        <button class="btn-eye" onclick="toggleSenhaVisivel('${id}',this)" title="Mostrar/ocultar senha">👁</button>
+        <button class="btn-salvar-senha" onclick="salvarSenha('${key}',document.getElementById('${id}').value,this)">Salvar</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  mc.innerHTML = `
+    <div class="page-header-bar">
+      <div class="page-header">
+        <h2>Gerenciar Acessos</h2>
+        <p>Redefina as senhas de cada diretoria. As senhas são salvas na nuvem e valem imediatamente.</p>
+      </div>
+      <button class="btn-sair" style="background:rgba(255,255,255,.1);margin-top:4px" onclick="renderDiretoria(currentUser)">← Voltar</button>
+    </div>
+    <div class="instrucoes-box">
+      <strong>Instruções:</strong> Clique em 👁 para ver a senha atual de cada unidade. Para alterar, escreva a nova senha e clique em <strong>Salvar</strong>. A mudança vale imediatamente para todos os usuários — sem necessidade de atualizar o sistema.
+    </div>
+    <div class="table-wrap" style="padding:16px">
+      ${cards}
+    </div>`;
+}
 
 function renderAnoSelector() {
   const anosBase = Object.keys(DADOS_ANOS).map(Number);
@@ -550,7 +636,7 @@ async function doLogin() {
   errEl.style.display = 'none';
 
   if (!dir) { errEl.textContent='Selecione a diretoria.'; errEl.style.display='block'; return; }
-  if (senha !== DIRETORIAS[dir]?.senha) {
+  if (senha !== getSenha(dir)) {
     errEl.textContent = 'Senha incorreta.'; errEl.style.display='block'; return;
   }
   if (!firebaseReady) {
@@ -574,7 +660,7 @@ async function doLogin() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('topbar-nome-diretoria').textContent = DIRETORIAS[dir].label;
-  await carregarAnosExtras();
+  await Promise.all([carregarSenhas(), carregarAnosExtras()]);
   renderAnoSelector();
 
   if (dir === 'GABINETE') renderGabinete();
@@ -604,6 +690,7 @@ function renderDiretoria(dir) {
         <h2>Escala de Férias — <span id='h2-ano'></span></h2>
         <p>${dados?.label || dir} · ${defensores.length} registros de concessão</p>
       </div>
+      ${dir === 'DPG' ? '<button class="btn-pdf" style="background:var(--verde-mid)" onclick="renderGerenciarAcessos()">🔑 Gerenciar Acessos</button>' : ''}
     </div>
     <div class="instrucoes-box">
       <strong>Instruções:</strong> Cada linha representa uma concessão (portaria).
