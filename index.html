@@ -709,7 +709,9 @@ function doLogout() {
 function renderDiretoria(dir) {
   const mc = document.getElementById('main-content');
   const dados = (DADOS_ANOS[currentAno] || {})[dir];
-  const defensores = dados?.defensores || [];
+  const novosFirestore = currentData._novos || [];
+  const defensoresBase = dados?.defensores || [];
+  const defensores = [...defensoresBase, ...novosFirestore];
   const savedCount = defensores.filter((d,i) => currentData[`${d.matricula}_${i}`]).length;
 
   mc.innerHTML = `
@@ -736,6 +738,21 @@ function renderDiretoria(dir) {
         <span>Defensor(a)</span><span>Matrícula</span><span>Portaria (ref. 2026)</span><span></span>
       </div>
       ${defensores.map((d,i) => renderDefensorRow(d,i,dir)).join('')}
+    </div>
+    <button class="btn-novo-defensor" onclick="toggleNovoDefensorForm()">＋ Adicionar Defensor / Concessão</button>
+    <div class="novo-defensor-form" id="novo-defensor-form">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--verde);margin-bottom:14px">Novo registro de concessão de férias</div>
+      <div class="novo-form-grid">
+        <div class="novo-field full"><label>Nome do(a) Defensor(a) *</label><input type="text" id="nd-nome" placeholder="NOME COMPLETO EM MAIÚSCULO"></div>
+        <div class="novo-field"><label>Matrícula *</label><input type="text" id="nd-matricula" placeholder="Ex: 0123456-7"></div>
+        <div class="novo-field"><label>Lotação / Defensoria</label><input type="text" id="nd-lotacao" placeholder="Ex: 1ª Defensoria de..."></div>
+        <div class="novo-field"><label>Portaria Período 1</label><input type="text" id="nd-portaria1" placeholder="PORTARIA Nº 001/2026"></div>
+        <div class="novo-field"><label>Portaria Período 2</label><input type="text" id="nd-portaria2" placeholder="Deixe vazio se igual ao P1"></div>
+      </div>
+      <div class="novo-form-actions">
+        <button class="btn-confirmar-novo" onclick="confirmarNovoDefensor('${dir}')">✓ Confirmar e Salvar</button>
+        <button class="btn-cancelar-novo" onclick="toggleNovoDefensorForm()">Cancelar</button>
+      </div>
     </div>
   `;
   const h2el = document.getElementById('h2-ano'); if(h2el) h2el.textContent = currentAno;
@@ -1013,8 +1030,16 @@ function parseMonth(s) {
 
 function renderResumo() {
   const el = document.getElementById('tab-resumo');
+  const dirsResume = Object.keys(DIRETORIAS).filter(k => k !== 'GABINETE');
+  let totalAlterados = 0;
+  dirsResume.forEach(dir => {
+    const saved = allSavedData[dir] || {};
+    Object.values(saved).forEach(v => { if (v && v.alterado) totalAlterados++; });
+  });
+  const badgeAlteracoes = totalAlterados > 0
+    ? '<div class="badge-alteracoes"><div class="badge-alteracoes-dot"></div><span>⚠ ' + totalAlterados + ' registro' + (totalAlterados>1?'s':'') + ' com alteração de férias — veja destaque na aba <strong>Escala por Mês</strong></span></div>' : '';
   const dirs = Object.keys(DIRETORIAS).filter(k => k !== 'GABINETE');
-  let html = '<div class="progress-summary">';
+  let html = badgeAlteracoes + '<div class="progress-summary">';
   dirs.forEach(dir => {
     const defs  = (DADOS_ANOS[currentAno]||DADOS_ANOS[2027]||{})[dir]?.defensores || [];
     const saved = allSavedData[dir] || {};
