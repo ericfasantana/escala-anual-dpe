@@ -1363,6 +1363,8 @@ async function confirmarNovoDefensor(dir) {
     p2e1_ini: gv('nd-p2e1-ini'), p2e1_fim: gv('nd-p2e1-fim'),
     p2e2_ini: gv('nd-p2e2-ini'), p2e2_fim: gv('nd-p2e2-fim'),
     p2e3_ini: gv('nd-p2e3-ini'), p2e3_fim: gv('nd-p2e3-fim'),
+    alterado: true,
+    alterado_em: new Date().toISOString(),
   };
 
   if (!currentData._novos) currentData._novos = [];
@@ -1798,20 +1800,26 @@ function coletarNotificacoes() {
       const key = `${d.matricula}_${i}`;
       const entry = saved[key];
       if (!entry || !entry.alterado) return;
-      
       const id = `${dir}_${key}_${currentAno}`;
       notifs.push({
-        id,
-        dir,
-        dirLabel: cfg.label,
-        nome: d.nome,
-        lotacao: d.lotacao,
-        matricula: d.matricula,
+        id, dir, dirLabel: cfg.label,
+        nome: d.nome, lotacao: d.lotacao, matricula: d.matricula,
         portaria: entry.portaria_p1 || entry.portaria2027 || d.portaria || '',
         alterado_em: entry.alterado_em || null,
-        lida: !!cientes[id],
-        entry,  // dados completos para preview
-        base: d  // dados base para comparar
+        lida: !!cientes[id], entry, base: d
+      });
+    });
+    // Novos registros adicionados manualmente
+    (saved._novos || []).forEach((d, ni) => {
+      if (!d.alterado) return;
+      const id = `${dir}_novo_${ni}_${currentAno}`;
+      notifs.push({
+        id, dir, dirLabel: cfg.label,
+        nome: d.nome, lotacao: d.lotacao, matricula: d.matricula || '—',
+        portaria: d.portaria_p1 || d.portaria || '',
+        alterado_em: d.alterado_em || null,
+        lida: !!cientes[id], entry: d, base: d,
+        isNovo: true
       });
     });
   });
@@ -2297,11 +2305,11 @@ function renderEscalaDiretoria() {
   if (!el) return;
   const dados = (DADOS_ANOS[currentAno]||{})[currentUser];
   const defensores = dados?.defensores || [];
-  const novos = currentData._novos || [];
+  const novos = (currentData._novos || []).map(d => ({...d, _isNovo:true}));
   const todos = [...defensores, ...novos];
   const MN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-  // Coletar todas as linhas com filtro de ano
+  // Coletar TODAS as linhas (sem filtro — o filtro é aplicado por CSS via filtrarEscalaDir)
   const todasLinhas = [];
   todos.forEach((d, i) => {
     const entry = currentData[`${d.matricula}_${i}`] || {};
@@ -2311,68 +2319,107 @@ function renderEscalaDiretoria() {
       if (!ini || !fim) return;
       if (parseInt(ini.split('/')[2]) !== currentAno) return;
       const isP2 = f.startsWith('p2');
-      todasLinhas.push({ nome: d.nome, lotacao: d.lotacao,
+      todasLinhas.push({
+        nome: d.nome, lotacao: d.lotacao,
         portaria: isP2 ? (entry.portaria_p2||d.portaria||'') : (entry.portaria_p1||d.portaria||''),
-        inicio: ini, fim: fim, mes: parseMonth(ini) });
+        inicio: ini, fim: fim, mes: parseMonth(ini)
+      });
     });
   });
 
-  // Lotações únicas para o filtro
+  // Lotações únicas para o autocomplete
   const lotSet = new Set(todasLinhas.map(r => r.lotacao).filter(Boolean));
+  (lotacoesCustom[currentUser] || []).forEach(l => lotSet.add(l));
   const lotacoes = [...lotSet].sort((a,b) => a.localeCompare(b,'pt-BR'));
-  const lotSelVal = (document.getElementById('ac-lot-dir')?.value || '').trim();
-  const nomeQ = (document.getElementById('filtro-escala-nome-dir')?.value || '').toLowerCase().trim();
 
-  // Aplicar filtros
-  let linhas = todasLinhas;
-  if (lotSelVal) linhas = linhas.filter(r => r.lotacao?.toLowerCase().includes(lotSelVal.toLowerCase()));
-  if (nomeQ)    linhas = linhas.filter(r => r.nome.toLowerCase().includes(nomeQ));
-
-  // Agrupar por mês
+  // Agrupar TODAS as linhas por mês (sem filtro ainda)
   const porMes = {};
-  linhas.forEach(r => { if (!porMes[r.mes]) porMes[r.mes] = []; porMes[r.mes].push(r); });
+  todasLinhas.forEach(r => { if (!porMes[r.mes]) porMes[r.mes] = []; porMes[r.mes].push(r); });
   const meses = Object.keys(porMes).map(Number).sort((a,b)=>a-b);
 
+  // Filtros — só no oninput, não no render inicial
   const filtrosHtml = `
     <div class="escala-dir-filtros">
       <div class="filter-group">
         <label>Buscar pelo nome</label>
-        <input type="text" id="filtro-escala-nome-dir" value="${nomeQ}"
-               placeholder="Nome do(a) defensor(a)..." oninput="renderEscalaDiretoria()">
+        <input type="text" id="filtro-escala-nome-dir"
+               placeholder="Nome do(a) defensor(a)..." oninput="filtrarEscalaDir()">
       </div>
       <div class="filter-group">
         <label>Lotação / Defensoria</label>
         <div class="autocomplete-wrap">
           <input type="text" id="ac-lot-dir" class="autocomplete-input"
-                 value="${lotSelVal}"
                  placeholder="Digite para filtrar…"
-                 oninput="renderEscalaDiretoria()">
-          <button class="autocomplete-clear" onclick="limparAutocompleteLot('ac-lot-dir','ac-list-dir',renderEscalaDiretoria)" title="Limpar">✕</button>
+                 oninput="filtrarEscalaDir()">
+          <button class="autocomplete-clear" onclick="limparFiltroEscalaDir()" title="Limpar">✕</button>
           <div id="ac-list-dir" class="autocomplete-list"></div>
         </div>
       </div>
     </div>`;
 
   if (!meses.length) {
-    el.innerHTML = filtrosHtml + '<div class="empty-state"><p>Nenhuma etapa encontrada.</p></div>';
+    el.innerHTML = filtrosHtml + '<div class="empty-state"><p>Nenhuma etapa registrada para ' + currentAno + '.</p></div>';
+    criarAutocomplete('ac-lot-dir', 'ac-list-dir', lotacoes, filtrarEscalaDir);
     return;
   }
 
-  let out = filtrosHtml + '<div class="table-wrap"><table class="consolidated-table"><thead><tr><th>Nome</th><th>Lotação</th><th>Início</th><th>Fim</th><th>Portaria</th></tr></thead><tbody>';
+  // Renderizar tabela completa — cada linha tem data-nome e data-lotacao para filtro via JS
+  let out = filtrosHtml + '<div id="escala-dir-tabela" class="table-wrap"><table class="consolidated-table"><thead><tr><th>Nome</th><th>Lotação</th><th>Início</th><th>Fim</th><th>Portaria</th></tr></thead><tbody>';
   meses.forEach(m => {
     const rows = porMes[m].sort((a,b) => a.nome.localeCompare(b.nome,'pt-BR'));
-    out += `<tr class="mes-header"><td colspan="5">${MN[m-1]?.toUpperCase()}/${currentAno} — ${rows.length} etapa(s)</td></tr>`;
+    out += `<tr class="mes-header" data-mes="${m}"><td colspan="5">${MN[m-1]?.toUpperCase()}/${currentAno} — <span class="mes-count">${rows.length}</span> etapa(s)</td></tr>`;
     rows.forEach(r => {
-      out += `<tr><td style="font-weight:500">${r.nome}</td><td style="font-size:11px">${r.lotacao}</td>
+      out += `<tr class="escala-row"
+                  data-nome="${r.nome.toLowerCase()}"
+                  data-lot="${r.lotacao?.toLowerCase()||''}">
+        <td style="font-weight:500">${r.nome}</td>
+        <td style="font-size:11px">${r.lotacao}</td>
         <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap">${r.inicio}</td>
         <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap">${r.fim}</td>
-        <td style="font-size:11px;font-style:italic">${r.portaria}</td></tr>`;
+        <td style="font-size:11px;font-style:italic">${r.portaria}</td>
+      </tr>`;
     });
   });
   out += '</tbody></table></div>';
   el.innerHTML = out;
-  // Inicializa autocomplete após render
-  criarAutocomplete('ac-lot-dir', 'ac-list-dir', lotacoes, () => renderEscalaDiretoria());
+  // Inicializa autocomplete — sem re-render, só chama filtrarEscalaDir
+  criarAutocomplete('ac-lot-dir', 'ac-list-dir', lotacoes, filtrarEscalaDir);
+}
+
+// Filtra as linhas já renderizadas SEM re-renderizar (preserva foco)
+function filtrarEscalaDir() {
+  const nomeQ = (document.getElementById('filtro-escala-nome-dir')?.value || '').toLowerCase().trim();
+  const lotQ  = (document.getElementById('ac-lot-dir')?.value || '').toLowerCase().trim();
+  const MN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  let mesCounts = {};
+  document.querySelectorAll('#escala-dir-tabela .escala-row').forEach(row => {
+    const nome = row.dataset.nome || '';
+    const lot  = row.dataset.lot  || '';
+    const vis  = (!nomeQ || nome.includes(nomeQ)) && (!lotQ || lot.includes(lotQ));
+    row.style.display = vis ? '' : 'none';
+    // Contar para atualizar header
+    const prev = row.previousElementSibling;
+    if (prev?.classList.contains('mes-header')) {
+      const m = parseInt(prev.dataset.mes);
+      if (!mesCounts[m]) mesCounts[m] = {vis:0, hdr:prev};
+      if (vis) mesCounts[m].vis++;
+    }
+  });
+
+  // Atualizar contadores e esconder headers sem resultados
+  Object.values(mesCounts).forEach(({vis, hdr}) => {
+    hdr.style.display = vis > 0 ? '' : 'none';
+    const sp = hdr.querySelector('.mes-count');
+    if (sp) sp.textContent = vis;
+  });
+}
+
+function limparFiltroEscalaDir() {
+  const inp = document.getElementById('ac-lot-dir');
+  if (inp) inp.value = '';
+  document.getElementById('ac-list-dir')?.classList.remove('open');
+  filtrarEscalaDir();
 }
 
 function switchDirTab(id, btn) {
