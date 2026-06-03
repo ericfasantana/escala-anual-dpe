@@ -405,6 +405,31 @@ tr.row-alterado:hover td{background:#fff8dc!important}
 .dir-tab-btn:hover:not(.active){color:var(--cinza-escuro)}
 .dir-tab-panel{display:none}
 .dir-tab-panel.active{display:block}
+
+/* FILTROS ESCALA DIRETORIA */
+.escala-dir-filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end}
+.escala-dir-filtros .filter-group{display:flex;flex-direction:column;gap:4px}
+.escala-dir-filtros .filter-group label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--cinza-mid)}
+.escala-dir-filtros input,.escala-dir-filtros select{padding:8px 10px;border:1.5px solid var(--cinza-light);border-radius:2px;
+  font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--cinza-escuro);background:var(--branco);outline:none;min-width:180px}
+.escala-dir-filtros input:focus,.escala-dir-filtros select:focus{border-color:var(--verde-mid)}
+.btn-nova-lotacao{background:transparent;border:1.5px solid var(--verde-mid);color:var(--verde);
+  padding:7px 12px;border-radius:2px;font-size:11px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;cursor:pointer;white-space:nowrap;transition:background .15s}
+.btn-nova-lotacao:hover{background:var(--verde-pale)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:center;justify-content:center}
+.modal-box{background:var(--branco);border-radius:4px;padding:28px 28px 24px;width:100%;max-width:420px;box-shadow:var(--shadow-lg)}
+.modal-box h3{font-family:'Crimson Pro',serif;font-size:20px;font-weight:700;color:var(--verde);margin-bottom:16px}
+.modal-box label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--cinza-mid);margin-bottom:5px}
+.modal-box input{width:100%;padding:9px 11px;border:1.5px solid var(--cinza-light);border-radius:3px;
+  font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--cinza-escuro);background:var(--branco);outline:none;margin-bottom:14px}
+.modal-box input:focus{border-color:var(--verde-mid)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+.btn-modal-ok{background:var(--verde);color:#fff;border:none;border-radius:2px;padding:9px 18px;
+  font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}
+.btn-modal-ok:hover{background:var(--verde-mid)}
+.btn-modal-cancel{background:transparent;color:var(--cinza-mid);border:1px solid var(--cinza-light);
+  border-radius:2px;padding:8px 14px;font-size:12px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -1439,6 +1464,68 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// Lotações customizadas por diretoria (salvas em memória + Firestore)
+let lotacoesCustom = {};
+
+async function carregarLotacoesCustom() {
+  try {
+    const snap = await window.dbLoad('_meta', 'lotacoes_' + currentUser);
+    lotacoesCustom[currentUser] = snap?._lista || [];
+  } catch(e) { lotacoesCustom[currentUser] = []; }
+}
+
+async function salvarLotacaoCustom(nome) {
+  if (!nome.trim()) return;
+  if (!lotacoesCustom[currentUser]) lotacoesCustom[currentUser] = [];
+  if (lotacoesCustom[currentUser].includes(nome.trim())) return;
+  lotacoesCustom[currentUser].push(nome.trim());
+  await window.dbSave('_meta', 'lotacoes_' + currentUser, { _lista: lotacoesCustom[currentUser] });
+}
+
+function getLotacoesDir() {
+  const dados = (DADOS_ANOS[currentAno]||{})[currentUser];
+  const defensores = dados?.defensores || [];
+  const novos = currentData._novos || [];
+  const todos = [...defensores, ...novos];
+  const base = [...new Set(todos.map(d => d.lotacao).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pt-BR'));
+  const custom = lotacoesCustom[currentUser] || [];
+  const extra = custom.filter(l => !base.includes(l));
+  return [...base, ...extra];
+}
+
+function abrirModalNovaLotacao() {
+  const existing = document.getElementById('modal-nova-lotacao');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'modal-nova-lotacao';
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-box">
+      <h3>Nova Lotação / Órgão</h3>
+      <label>Nome da lotação ou defensoria</label>
+      <input type="text" id="input-nova-lotacao" placeholder="Ex: 5ª Defensoria Pública de Parnaíba" autofocus>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="document.getElementById('modal-nova-lotacao').remove()">Cancelar</button>
+        <button class="btn-modal-ok" onclick="confirmarNovaLotacao()">Adicionar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => document.getElementById('input-nova-lotacao')?.focus(), 50);
+  document.getElementById('input-nova-lotacao').addEventListener('keypress', e => {
+    if (e.key === 'Enter') confirmarNovaLotacao();
+  });
+}
+
+async function confirmarNovaLotacao() {
+  const val = document.getElementById('input-nova-lotacao')?.value?.trim();
+  if (!val) return;
+  showLoading('Salvando lotação...');
+  await salvarLotacaoCustom(val);
+  hideLoading();
+  document.getElementById('modal-nova-lotacao')?.remove();
+  renderEscalaDiretoria(); // re-renderiza para incluir nova lotação no filtro
+}
+
 function renderEscalaDiretoria() {
   const el = document.getElementById('escala-dir-content');
   if (!el) return;
@@ -1447,7 +1534,9 @@ function renderEscalaDiretoria() {
   const novos = currentData._novos || [];
   const todos = [...defensores, ...novos];
   const MN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const porMes = {};
+
+  // Coletar todas as linhas
+  const todasLinhas = [];
   todos.forEach((d, i) => {
     const entry = currentData[`${d.matricula}_${i}`] || {};
     ['p1e1','p1e2','p1e3','p2e1','p2e2','p2e3'].forEach(f => {
@@ -1455,32 +1544,76 @@ function renderEscalaDiretoria() {
       const fim = entry[f+'_fim'] || d[f+'_fim'] || '';
       if (!ini || !fim) return;
       if (parseInt(ini.split('/')[2]) !== currentAno) return;
-      const m = parseMonth(ini);
-      if (!porMes[m]) porMes[m] = [];
       const isP2 = f.startsWith('p2');
-      porMes[m].push({ nome: d.nome, lotacao: d.lotacao,
+      todasLinhas.push({
+        nome: d.nome, lotacao: d.lotacao,
         portaria: isP2 ? (entry.portaria_p2||d.portaria||'') : (entry.portaria_p1||d.portaria||''),
-        inicio: ini, fim: fim });
+        inicio: ini, fim: fim, mes: parseMonth(ini)
+      });
     });
   });
+
+  // Lotações para o filtro
+  const lotacoes = getLotacoesDir();
+  const lotSelVal = document.getElementById('filtro-escala-lot')?.value || '';
+  const nomeQ     = (document.getElementById('filtro-escala-nome')?.value || '').toLowerCase().trim();
+
+  // Filtros
+  let linhas = todasLinhas;
+  if (lotSelVal) linhas = linhas.filter(r => r.lotacao === lotSelVal);
+  if (nomeQ)    linhas = linhas.filter(r => r.nome.toLowerCase().includes(nomeQ));
+
+  // Agrupar por mês
+  const porMes = {};
+  linhas.forEach(r => {
+    if (!porMes[r.mes]) porMes[r.mes] = [];
+    porMes[r.mes].push(r);
+  });
+
   const meses = Object.keys(porMes).map(Number).sort((a,b)=>a-b);
+
+  // Montar HTML
+  const filtrosHtml = `
+    <div class="escala-dir-filtros">
+      <div class="filter-group">
+        <label>Buscar pelo nome</label>
+        <input type="text" id="filtro-escala-nome" value="${nomeQ}"
+               placeholder="Nome do(a) defensor(a)..."
+               oninput="renderEscalaDiretoria()">
+      </div>
+      <div class="filter-group">
+        <label>Lotação / Defensoria</label>
+        <select id="filtro-escala-lot" onchange="renderEscalaDiretoria()">
+          <option value="">Todas as lotações</option>
+          ${lotacoes.map(l => `<option value="${l}" ${l===lotSelVal?'selected':''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <button class="btn-nova-lotacao" onclick="abrirModalNovaLotacao()" title="Adicionar nova lotação ou órgão">
+        + Nova lotação
+      </button>
+    </div>`;
+
   if (!meses.length) {
-    el.innerHTML = '<div class="empty-state"><p>Nenhuma etapa registrada para ' + currentAno + '.</p></div>';
+    el.innerHTML = filtrosHtml + '<div class="empty-state"><p>Nenhuma etapa encontrada para os filtros selecionados.</p></div>';
     return;
   }
-  let out = '<div class="table-wrap"><table class="consolidated-table"><thead><tr><th>Nome</th><th>Lotação</th><th>Início</th><th>Fim</th><th>Portaria</th></tr></thead><tbody>';
+
+  let tabelaHtml = '<div class="table-wrap"><table class="consolidated-table"><thead><tr><th>Nome</th><th>Lotação</th><th>Início</th><th>Fim</th><th>Portaria</th></tr></thead><tbody>';
   meses.forEach(m => {
     const rows = porMes[m].sort((a,b) => a.nome.localeCompare(b.nome,'pt-BR'));
-    out += `<tr class="mes-header"><td colspan="5">${MN[m-1]?.toUpperCase()}/${currentAno} — ${rows.length} etapa(s)</td></tr>`;
+    tabelaHtml += `<tr class="mes-header"><td colspan="5">${MN[m-1]?.toUpperCase()}/${currentAno} — ${rows.length} etapa(s)</td></tr>`;
     rows.forEach(r => {
-      out += `<tr><td style="font-weight:500">${r.nome}</td><td style="font-size:11px">${r.lotacao}</td>
+      tabelaHtml += `<tr>
+        <td style="font-weight:500">${r.nome}</td>
+        <td style="font-size:11px">${r.lotacao}</td>
         <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap">${r.inicio}</td>
         <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap">${r.fim}</td>
-        <td style="font-size:11px;font-style:italic">${r.portaria}</td></tr>`;
+        <td style="font-size:11px;font-style:italic">${r.portaria}</td>
+      </tr>`;
     });
   });
-  out += '</tbody></table></div>';
-  el.innerHTML = out;
+  tabelaHtml += '</tbody></table></div>';
+  el.innerHTML = filtrosHtml + tabelaHtml;
 }
 
 function switchDirTab(id, btn) {
@@ -1489,7 +1622,9 @@ function switchDirTab(id, btn) {
   const el = document.getElementById(id);
   if (el) { el.style.display='block'; el.classList.add('active'); }
   if (btn) btn.classList.add('active');
-  if (id === 'tab-dir-escala') renderEscalaDiretoria();
+  if (id === 'tab-dir-escala') {
+    carregarLotacoesCustom().then(() => renderEscalaDiretoria());
+  }
 }
 </script>
 </body>
