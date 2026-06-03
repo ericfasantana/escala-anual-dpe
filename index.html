@@ -405,6 +405,27 @@ tr.row-alterado:hover td{background:#fff8dc!important}
 .dir-tab-btn:hover:not(.active){color:var(--cinza-escuro)}
 .dir-tab-panel{display:none}
 .dir-tab-panel.active{display:block}
+
+/* AUTOCOMPLETE LOTAÇÃO */
+.autocomplete-wrap{position:relative;min-width:220px}
+.autocomplete-input{width:100%;padding:7px 10px;border:1.5px solid var(--cinza-light);border-radius:2px;
+  font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--cinza-escuro);
+  background:var(--branco);outline:none}
+.autocomplete-input:focus{border-color:var(--verde-mid)}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--branco);
+  border:1.5px solid var(--verde-mid);border-top:none;border-radius:0 0 3px 3px;
+  max-height:220px;overflow-y:auto;z-index:500;box-shadow:0 4px 12px rgba(0,0,0,.12);display:none}
+.autocomplete-list.open{display:block}
+.autocomplete-item{padding:7px 10px;font-size:12px;cursor:pointer;
+  border-bottom:1px solid var(--linha);transition:background .1s}
+.autocomplete-item:last-child{border-bottom:none}
+.autocomplete-item:hover,.autocomplete-item.selected{background:var(--verde-pale);color:var(--verde)}
+.autocomplete-item mark{background:var(--ouro-light);color:var(--cinza-escuro);
+  font-weight:600;border-radius:1px;padding:0 1px}
+.autocomplete-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;color:var(--cinza-mid);font-size:14px;
+  line-height:1;padding:0;display:none}
+.autocomplete-wrap:has(input:not(:placeholder-shown)) .autocomplete-clear{display:block}
 </style>
 </head>
 <body>
@@ -1259,9 +1280,12 @@ function initFiltros() {
       </div>
       <div class="filter-group">
         <label>Lotação / Defensoria</label>
-        <select id="filtro-lot" onchange="renderEscalaConsolidada()">
-          <option value="">Todas as lotações</option>
-        </select>
+        <div class="autocomplete-wrap">
+          <input type="text" id="ac-lot-gabinete" class="autocomplete-input"
+                 placeholder="Digite para filtrar…">
+          <button class="autocomplete-clear" onclick="limparAutocompleteLot('ac-lot-gabinete','ac-list-gabinete',renderEscalaConsolidada)" title="Limpar">✕</button>
+          <div id="ac-list-gabinete" class="autocomplete-list"></div>
+        </div>
       </div>
       <div class="filter-group">
         <label>Nome</label>
@@ -1273,6 +1297,83 @@ function initFiltros() {
   atualizarFiltroLotacao();
 }
 
+
+
+// ── Componente Autocomplete de Lotação ──────────────────
+function criarAutocomplete(inputId, listId, opcoes, onSelect) {
+  const input = document.getElementById(inputId);
+  const list  = document.getElementById(listId);
+  if (!input || !list) return;
+
+  let idxSel = -1;
+
+  function highlight(texto, q) {
+    if (!q) return texto;
+    const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    return texto.replace(re, '<mark>$1</mark>');
+  }
+
+  function renderList(q) {
+    const qLow = q.toLowerCase();
+    const filtradas = qLow
+      ? opcoes.filter(o => o.toLowerCase().includes(qLow))
+      : opcoes;
+    idxSel = -1;
+
+    if (!filtradas.length) {
+      list.innerHTML = '<div class="autocomplete-item" style="color:var(--cinza-mid);cursor:default">Nenhum resultado</div>';
+    } else {
+      list.innerHTML = filtradas.slice(0, 60).map((o, i) =>
+        `<div class="autocomplete-item" data-idx="${i}" data-val="${o}"
+              onmousedown="event.preventDefault()"
+              onclick="selecionarAutocompleteLot(this, '${inputId}', '${listId}')">
+          ${highlight(o, q)}
+        </div>`
+      ).join('');
+    }
+    list.classList.add('open');
+  }
+
+  input.addEventListener('input', () => { renderList(input.value); });
+  input.addEventListener('focus', () => { renderList(input.value); });
+  input.addEventListener('blur',  () => { setTimeout(() => list.classList.remove('open'), 150); });
+  input.addEventListener('keydown', e => {
+    const items = list.querySelectorAll('.autocomplete-item[data-val]');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      idxSel = Math.min(idxSel + 1, items.length - 1);
+      items.forEach((el, i) => el.classList.toggle('selected', i === idxSel));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      idxSel = Math.max(idxSel - 1, -1);
+      items.forEach((el, i) => el.classList.toggle('selected', i === idxSel));
+    } else if (e.key === 'Enter') {
+      if (idxSel >= 0 && items[idxSel]) {
+        input.value = items[idxSel].dataset.val;
+        list.classList.remove('open');
+        onSelect(input.value);
+      }
+    } else if (e.key === 'Escape') {
+      list.classList.remove('open');
+    }
+  });
+}
+
+function selecionarAutocompleteLot(el, inputId, listId) {
+  document.getElementById(inputId).value = el.dataset.val;
+  document.getElementById(listId).classList.remove('open');
+  // Dispara a atualização correta conforme o contexto
+  if (inputId === 'ac-lot-gabinete') renderEscalaConsolidada();
+  else if (inputId === 'ac-lot-dir') renderEscalaDiretoria();
+}
+
+function limparAutocompleteLot(inputId, listId, callback) {
+  const el = document.getElementById(inputId);
+  if (el) el.value = '';
+  const lst = document.getElementById(listId);
+  if (lst) lst.classList.remove('open');
+  if (callback) callback();
+}
 
 function atualizarFiltroLotacao() {
   const dirF = document.getElementById('filtro-dir')?.value || '';
@@ -1302,8 +1403,8 @@ function atualizarFiltroLotacao() {
   });
 
   const lots = [...lotSet].sort((a,b) => a.localeCompare(b,'pt-BR'));
-  lotEl.innerHTML = '<option value="">Todas as lotações</option>' +
-    lots.map(l => `<option value="${l}" ${l===lotAtual?'selected':''}>${l}</option>`).join('');
+  // Inicializa / reinicializa o autocomplete do Gabinete
+  criarAutocomplete('ac-lot-gabinete', 'ac-list-gabinete', lots, () => renderEscalaConsolidada());
 }
 
 function renderEscalaConsolidada() {
@@ -1311,7 +1412,7 @@ function renderEscalaConsolidada() {
 
   const mesF  = document.getElementById('filtro-mes')?.value || '';
   const dirF  = document.getElementById('filtro-dir')?.value || '';
-  const lotF  = document.getElementById('filtro-lot')?.value || '';
+  const lotF  = (document.getElementById('ac-lot-gabinete')?.value || '').trim();
   const nomeF = (document.getElementById('filtro-nome')?.value || '').toLowerCase();
   const dest  = document.getElementById('tabela-escala-resultado');
   if (!dest) return;
@@ -1505,7 +1606,7 @@ function renderEscalaDiretoria() {
   // Lotações únicas para o filtro
   const lotSet = new Set(todasLinhas.map(r => r.lotacao).filter(Boolean));
   const lotacoes = [...lotSet].sort((a,b) => a.localeCompare(b,'pt-BR'));
-  const lotSelVal = document.getElementById('filtro-escala-lot-dir')?.value || '';
+  const lotSelVal = (document.getElementById('ac-lot-dir')?.value || '').trim();
   const nomeQ = (document.getElementById('filtro-escala-nome-dir')?.value || '').toLowerCase().trim();
 
   // Aplicar filtros
@@ -1527,10 +1628,13 @@ function renderEscalaDiretoria() {
       </div>
       <div class="filter-group">
         <label>Lotação / Defensoria</label>
-        <select id="filtro-escala-lot-dir" onchange="renderEscalaDiretoria()">
-          <option value="">Todas as lotações</option>
-          ${lotacoes.map(l => `<option value="${l}" ${l===lotSelVal?'selected':''}>${l}</option>`).join('')}
-        </select>
+        <div class="autocomplete-wrap">
+          <input type="text" id="ac-lot-dir" class="autocomplete-input"
+                 value="${lotSelVal}"
+                 placeholder="Digite para filtrar…">
+          <button class="autocomplete-clear" onclick="limparAutocompleteLot('ac-lot-dir','ac-list-dir',renderEscalaDiretoria)" title="Limpar">✕</button>
+          <div id="ac-list-dir" class="autocomplete-list"></div>
+        </div>
       </div>
     </div>`;
 
@@ -1552,6 +1656,8 @@ function renderEscalaDiretoria() {
   });
   out += '</tbody></table></div>';
   el.innerHTML = out;
+  // Inicializa autocomplete após render
+  criarAutocomplete('ac-lot-dir', 'ac-list-dir', lotacoes, () => renderEscalaDiretoria());
 }
 
 function switchDirTab(id, btn) {
