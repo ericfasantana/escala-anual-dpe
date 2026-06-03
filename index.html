@@ -600,6 +600,17 @@ tr.row-alterado:hover td{background:#fff8dc!important}
   .nc-etapas-grid{grid-template-columns:1fr}
   .nc-id-row{grid-template-columns:1fr}
 }
+
+/* ── BOTÃO NOVA LOTAÇÃO (Gabinete) ── */
+.btn-nova-lotacao-gab{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--verde);color:#fff;border:none;border-radius:3px;
+  padding:8px 14px;font-family:'IBM Plex Sans',sans-serif;
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;
+  cursor:pointer;transition:background .15s,box-shadow .15s;white-space:nowrap;
+  box-shadow:0 1px 4px rgba(26,74,46,.25)}
+.btn-nova-lotacao-gab:hover{background:var(--verde-mid);box-shadow:0 2px 8px rgba(26,74,46,.3)}
+.btn-nova-lotacao-gab svg{flex-shrink:0}
 </style>
 </head>
 <body>
@@ -1420,6 +1431,9 @@ async function renderGabinete() {
   showLoading('Carregando todas as diretorias do Firebase...');
   try {
     allSavedData = await window.dbLoadAll(currentAno);
+    // Carregar lotações customizadas de todas as diretorias
+    const dirsParaCarregar = Object.keys(DIRETORIAS).filter(k => k !== 'GABINETE');
+    await Promise.all(dirsParaCarregar.map(d => carregarLotacoesCustom(d)));
     atualizarSino();
   } catch(e) {
     hideLoading();
@@ -1670,8 +1684,11 @@ function initFiltros() {
           <div id="ac-list-gabinete" class="autocomplete-list"></div>
         </div>
       </div>
-      <button class="btn-nova-lotacao" onclick="abrirModalNovaLotacao()" title="Cadastrar nova lotação em qualquer diretoria">
-        + Nova lotação
+      <button class="btn-nova-lotacao-gab" onclick="abrirModalNovaLotacao()" title="Cadastrar nova lotação para qualquer diretoria">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Nova Lotação
       </button>
       <div class="filter-group">
         <label>Nome</label>
@@ -2094,6 +2111,11 @@ function atualizarFiltroLotacao() {
     });
   });
 
+  // Adicionar lotações customizadas de todas as diretorias
+  const dirsAll = dirF ? [dirF] : Object.keys(DIRETORIAS).filter(k => k !== 'GABINETE');
+  dirsAll.forEach(d => {
+    (lotacoesCustom[d] || []).forEach(l => lotSet.add(l));
+  });
   const lots = [...lotSet].sort((a,b) => a.localeCompare(b,'pt-BR'));
   // Inicializa / reinicializa o autocomplete do Gabinete
   criarAutocomplete('ac-lot-gabinete', 'ac-list-gabinete', lots, () => renderEscalaConsolidada());
@@ -2329,9 +2351,6 @@ function renderEscalaDiretoria() {
           <div id="ac-list-dir" class="autocomplete-list"></div>
         </div>
       </div>
-      <button class="btn-nova-lotacao" onclick="abrirModalNovaLotacao()" title="Adicionar lotação não listada">
-        + Nova lotação
-      </button>
     </div>`;
 
   if (!meses.length) {
@@ -2362,7 +2381,7 @@ function switchDirTab(id, btn) {
   const el = document.getElementById(id);
   if (el) { el.style.display='block'; el.classList.add('active'); }
   if (btn) btn.classList.add('active');
-  if (id === 'tab-dir-escala') renderEscalaDiretoria();
+  if (id === 'tab-dir-escala') carregarLotacoesCustom(currentUser).then(() => renderEscalaDiretoria());
 }
 </script>
 </body>
