@@ -426,6 +426,47 @@ tr.row-alterado:hover td{background:#fff8dc!important}
   background:none;border:none;cursor:pointer;color:var(--cinza-mid);font-size:14px;
   line-height:1;padding:0;display:none}
 .autocomplete-wrap:has(input:not(:placeholder-shown)) .autocomplete-clear{display:block}
+
+/* FORMULÁRIO NOVO DEFENSOR */
+.btn-novo-defensor{background:transparent;border:1.5px solid var(--verde-mid);color:var(--verde);
+  padding:8px 16px;border-radius:2px;font-family:'IBM Plex Sans',sans-serif;font-size:11px;
+  font-weight:600;text-transform:uppercase;letter-spacing:.07em;cursor:pointer;
+  margin-top:16px;transition:background .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-novo-defensor:hover{background:var(--verde-pale)}
+
+.novo-defensor-form{display:none;margin-top:12px;background:var(--branco);
+  border:1.5px solid var(--verde-mid);border-radius:4px;padding:20px;
+  box-shadow:var(--shadow)}
+.novo-defensor-form.aberto{display:block}
+
+.novo-form-titulo{font-family:'Crimson Pro',serif;font-size:17px;font-weight:700;
+  color:var(--verde);margin-bottom:16px;padding-bottom:10px;
+  border-bottom:1px solid var(--linha)}
+
+.novo-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.novo-field{display:flex;flex-direction:column;gap:4px}
+.novo-field.full{grid-column:1/-1}
+.novo-field label{font-size:10px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--cinza-mid)}
+.novo-field input{padding:8px 10px;border:1.5px solid var(--cinza-light);border-radius:2px;
+  font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--cinza-escuro);
+  background:var(--branco);outline:none;transition:border-color .15s}
+.novo-field input:focus{border-color:var(--verde-mid)}
+
+.novo-form-actions{display:flex;gap:10px;align-items:center}
+.btn-confirmar-novo{background:var(--verde);color:#fff;border:none;border-radius:2px;
+  padding:9px 18px;font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.07em;cursor:pointer;transition:background .15s}
+.btn-confirmar-novo:hover{background:var(--verde-mid)}
+.btn-cancelar-novo{background:transparent;color:var(--cinza-mid);border:1px solid var(--cinza-light);
+  border-radius:2px;padding:8px 14px;font-family:'IBM Plex Sans',sans-serif;
+  font-size:11px;cursor:pointer;transition:background .15s}
+.btn-cancelar-novo:hover{background:#f5f5f5}
+
+@media(max-width:640px){
+  .novo-form-grid{grid-template-columns:1fr}
+  .novo-field.full{grid-column:1}
+}
 </style>
 </head>
 <body>
@@ -807,7 +848,7 @@ function renderDiretoria(dir) {
     </div>
     <button class="btn-novo-defensor" onclick="toggleNovoDefensorForm()">＋ Adicionar Defensor / Concessão</button>
     <div class="novo-defensor-form" id="novo-defensor-form">
-      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--verde);margin-bottom:14px">Novo registro de concessão de férias</div>
+      <div class="novo-form-titulo">Novo Registro de Concessão de Férias</div>
       <div class="novo-form-grid">
         <div class="novo-field full"><label>Nome do(a) Defensor(a) *</label><input type="text" id="nd-nome" placeholder="NOME COMPLETO EM MAIÚSCULO"></div>
         <div class="novo-field"><label>Matrícula *</label><input type="text" id="nd-matricula" placeholder="Ex: 0123456-7"></div>
@@ -827,6 +868,22 @@ function renderDiretoria(dir) {
   if (painelEl) painelEl.innerHTML = renderPainelMesDiretoria(dir);
 }
 
+
+
+function toggleNovoDefensorForm() {
+  const form = document.getElementById('novo-defensor-form');
+  if (!form) return;
+  const abrindo = !form.classList.contains('aberto');
+  form.classList.toggle('aberto');
+  if (abrindo) {
+    // Limpar campos ao abrir
+    ['nd-nome','nd-matricula','nd-lotacao','nd-portaria1','nd-portaria2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.getElementById('nd-nome')?.focus();
+  }
+}
 
 function filtrarDefensores() {
   const q = (document.getElementById('busca-defensor')?.value || '').toLowerCase().trim();
@@ -1636,6 +1693,9 @@ function renderEscalaDiretoria() {
           <div id="ac-list-dir" class="autocomplete-list"></div>
         </div>
       </div>
+      <button class="btn-nova-lotacao" onclick="abrirModalNovaLotacao()" title="Adicionar lotação não listada">
+        + Nova lotação
+      </button>
     </div>`;
 
   if (!meses.length) {
