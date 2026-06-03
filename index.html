@@ -476,6 +476,84 @@ tr.row-alterado:hover td{background:#fff8dc!important}
   content:'NOVO';font-size:8px;font-weight:700;letter-spacing:.06em;
   background:var(--ouro-light);color:var(--ouro);border-radius:2px;
   padding:1px 4px;margin-left:6px;vertical-align:middle}
+
+/* ── SINO DE NOTIFICAÇÕES ── */
+.notif-btn{position:relative;background:transparent;border:none;color:#fff;
+  cursor:pointer;padding:6px;border-radius:50%;transition:background .15s;
+  display:flex;align-items:center;justify-content:center}
+.notif-btn:hover{background:rgba(255,255,255,.15)}
+.notif-btn svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.notif-badge{position:absolute;top:0;right:0;background:#e53935;color:#fff;
+  font-size:9px;font-weight:700;border-radius:10px;min-width:16px;height:16px;
+  display:flex;align-items:center;justify-content:center;padding:0 3px;
+  border:2px solid var(--verde);animation:pulse-badge .6s ease}
+@keyframes pulse-badge{0%{transform:scale(.6)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+/* ── PAINEL LATERAL ── */
+.notif-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:8000;
+  display:none;animation:fadeIn .18s ease}
+.notif-overlay.open{display:block}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.notif-panel{position:fixed;top:0;right:-400px;width:400px;max-width:95vw;height:100vh;
+  background:var(--branco);box-shadow:-4px 0 24px rgba(0,0,0,.18);
+  z-index:8001;display:flex;flex-direction:column;transition:right .25s ease}
+.notif-panel.open{right:0}
+
+.notif-panel-header{background:var(--verde);color:#fff;padding:16px 20px;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.notif-panel-header h3{font-family:'Crimson Pro',serif;font-size:18px;font-weight:700}
+.notif-panel-close{background:transparent;border:none;color:#fff;cursor:pointer;
+  font-size:20px;line-height:1;padding:4px;opacity:.8;transition:opacity .15s}
+.notif-panel-close:hover{opacity:1}
+
+.notif-tabs{display:flex;border-bottom:2px solid var(--linha);flex-shrink:0}
+.notif-tab{flex:1;padding:10px;background:transparent;border:none;
+  font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.07em;color:var(--cinza-mid);
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.notif-tab.active{color:var(--verde);border-bottom-color:var(--verde)}
+
+.notif-list{flex:1;overflow-y:auto;padding:0}
+.notif-empty{padding:40px 20px;text-align:center;color:var(--cinza-mid);font-size:13px}
+
+/* ── CARD DE NOTIFICAÇÃO ── */
+.notif-card{border-bottom:1px solid var(--linha);padding:14px 16px;
+  background:var(--branco);transition:background .1s}
+.notif-card:hover{background:var(--verde-pale)}
+.notif-card.nao-lida{border-left:3px solid var(--ouro);background:#fffdf5}
+.notif-card.nao-lida:hover{background:#fff8e8}
+
+.notif-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
+.notif-card-dir{font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--verde)}
+.notif-card-time{font-size:10px;color:var(--cinza-mid);white-space:nowrap;flex-shrink:0}
+.notif-card-nome{font-size:13px;font-weight:600;color:var(--cinza-escuro);margin-bottom:2px}
+.notif-card-lotacao{font-size:11px;color:var(--cinza-mid);margin-bottom:8px}
+
+.notif-card-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn-preview-notif{background:transparent;border:1px solid var(--cinza-light);
+  color:var(--cinza);border-radius:2px;padding:5px 10px;font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.06em;cursor:pointer;transition:all .15s}
+.btn-preview-notif:hover{border-color:var(--verde-mid);color:var(--verde)}
+.btn-ciente{background:var(--verde);color:#fff;border:none;border-radius:2px;
+  padding:5px 10px;font-size:10px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;cursor:pointer;transition:background .15s}
+.btn-ciente:hover{background:var(--verde-mid)}
+.tag-ciente{font-size:10px;color:var(--cinza-mid);font-style:italic}
+
+/* ── PREVIEW DE ALTERAÇÃO ── */
+.notif-preview{background:#f9f9f8;border:1px solid var(--linha);border-radius:3px;
+  padding:10px 12px;margin-top:8px;font-size:11px}
+.notif-preview-title{font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--cinza-mid);margin-bottom:8px}
+.notif-preview-row{display:grid;grid-template-columns:110px 1fr;gap:4px;
+  padding:4px 0;border-bottom:1px solid var(--linha)}
+.notif-preview-row:last-child{border-bottom:none}
+.notif-preview-label{font-size:10px;font-weight:600;color:var(--cinza-mid)}
+.notif-preview-val{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--cinza-escuro)}
+.notif-preview-val.destaque{color:var(--verde);font-weight:600}
 </style>
 </head>
 <body>
@@ -532,10 +610,38 @@ tr.row-alterado:hover td{background:#fff8dc!important}
     </div>
     <div class="topbar-right">
       <div class="ano-selector" id="ano-selector"></div>
+      <button class="notif-btn" id="notif-btn" onclick="abrirNotificacoes()"
+              title="Notificações" style="display:none">
+        <svg viewBox="0 0 24 24">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span class="notif-badge" id="notif-badge" style="display:none">0</span>
+      </button>
       <button class="btn-sair" onclick="doLogout()">Sair</button>
     </div>
   </div>
   <div class="main-content" id="main-content"></div>
+
+  <!-- Overlay -->
+  <div class="notif-overlay" id="notif-overlay" onclick="fecharNotificacoes()"></div>
+
+  <!-- Painel lateral de notificações -->
+  <div class="notif-panel" id="notif-panel">
+    <div class="notif-panel-header">
+      <h3>🔔 Notificações</h3>
+      <button class="notif-panel-close" onclick="fecharNotificacoes()">✕</button>
+    </div>
+    <div class="notif-tabs">
+      <button class="notif-tab active" id="tab-nao-lidas" onclick="switchNotifTab('nao-lidas',this)">
+        Não lidas <span id="count-nao-lidas"></span>
+      </button>
+      <button class="notif-tab" id="tab-historico" onclick="switchNotifTab('historico',this)">
+        Histórico
+      </button>
+    </div>
+    <div class="notif-list" id="notif-list"></div>
+  </div>
 </div>
 
 <script>
@@ -1034,6 +1140,8 @@ async function saveDefensor(idx, dir, matricula) {
     if (fim) entry[f+'_fim'] = fim.value.trim();
   });
 
+  entry.alterado = true;
+  entry.alterado_em = new Date().toISOString();
   currentData[key] = entry;
   showLoading('Salvando no Firebase...');
 
@@ -1181,6 +1289,7 @@ async function renderGabinete() {
   showLoading('Carregando todas as diretorias do Firebase...');
   try {
     allSavedData = await window.dbLoadAll(currentAno);
+    atualizarSino();
   } catch(e) {
     hideLoading();
     const mc2 = document.getElementById('main-content');
@@ -1515,6 +1624,218 @@ function limparAutocompleteLot(inputId, listId, callback) {
   const lst = document.getElementById(listId);
   if (lst) lst.classList.remove('open');
   if (callback) callback();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// SISTEMA DE NOTIFICAÇÕES DO GABINETE
+// ═══════════════════════════════════════════════════════════
+
+let _notifTab = 'nao-lidas';  // aba ativa no painel
+
+// ── Coletar notificações do allSavedData ────────────────
+function coletarNotificacoes() {
+  const notifs = [];
+  const cientes = JSON.parse(localStorage.getItem('dpe_notif_cientes') || '{}');
+  
+  Object.entries(DIRETORIAS).filter(([k]) => k !== 'GABINETE').forEach(([dir, cfg]) => {
+    const defensores = (DADOS_ANOS[currentAno]||{})[dir]?.defensores || [];
+    const saved = allSavedData[dir] || {};
+    
+    defensores.forEach((d, i) => {
+      const key = `${d.matricula}_${i}`;
+      const entry = saved[key];
+      if (!entry || !entry.alterado) return;
+      
+      const id = `${dir}_${key}_${currentAno}`;
+      notifs.push({
+        id,
+        dir,
+        dirLabel: cfg.label,
+        nome: d.nome,
+        lotacao: d.lotacao,
+        matricula: d.matricula,
+        portaria: entry.portaria_p1 || entry.portaria2027 || d.portaria || '',
+        alterado_em: entry.alterado_em || null,
+        lida: !!cientes[id],
+        entry,  // dados completos para preview
+        base: d  // dados base para comparar
+      });
+    });
+  });
+  
+  // Ordenar: não lidas primeiro, depois por data
+  notifs.sort((a, b) => {
+    if (a.lida !== b.lida) return a.lida ? 1 : -1;
+    if (a.alterado_em && b.alterado_em) return b.alterado_em.localeCompare(a.alterado_em);
+    return 0;
+  });
+  
+  return notifs;
+}
+
+// ── Mostrar/esconder o sino ─────────────────────────────
+function atualizarSino() {
+  if (currentUser !== 'GABINETE') return;
+  const btn   = document.getElementById('notif-btn');
+  const badge = document.getElementById('notif-badge');
+  if (!btn) return;
+  
+  btn.style.display = 'flex';
+  const notifs  = coletarNotificacoes();
+  const naoLidas = notifs.filter(n => !n.lida).length;
+  
+  if (naoLidas > 0) {
+    badge.style.display = 'flex';
+    badge.textContent   = naoLidas > 9 ? '9+' : String(naoLidas);
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ── Abrir/fechar painel ─────────────────────────────────
+function abrirNotificacoes() {
+  document.getElementById('notif-overlay').classList.add('open');
+  document.getElementById('notif-panel').classList.add('open');
+  renderNotifList();
+}
+
+function fecharNotificacoes() {
+  document.getElementById('notif-overlay').classList.remove('open');
+  document.getElementById('notif-panel').classList.remove('open');
+}
+
+function switchNotifTab(tab, btn) {
+  _notifTab = tab;
+  document.querySelectorAll('.notif-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderNotifList();
+}
+
+// ── Renderizar lista de notificações ────────────────────
+function renderNotifList() {
+  const el = document.getElementById('notif-list');
+  if (!el) return;
+  
+  const notifs   = coletarNotificacoes();
+  const naoLidas = notifs.filter(n => !n.lida);
+  const lidas    = notifs.filter(n => n.lida);
+  
+  // Atualiza contador da aba
+  const countEl = document.getElementById('count-nao-lidas');
+  if (countEl) countEl.textContent = naoLidas.length ? ` (${naoLidas.length})` : '';
+  
+  const lista = _notifTab === 'nao-lidas' ? naoLidas : lidas;
+  
+  if (!lista.length) {
+    el.innerHTML = `<div class="notif-empty">${
+      _notifTab === 'nao-lidas'
+        ? '✓ Nenhuma notificação pendente.'
+        : 'Nenhuma notificação no histórico.'
+    }</div>`;
+    return;
+  }
+  
+  el.innerHTML = lista.map(n => renderNotifCard(n)).join('');
+}
+
+// ── Formatar data/hora ──────────────────────────────────
+function fmtDataHora(iso) {
+  if (!iso) return 'Data não registrada';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR') + ' às ' +
+      d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch(e) { return iso; }
+}
+
+// ── Renderizar um card de notificação ───────────────────
+function renderNotifCard(n) {
+  const previewId = `preview-${n.id.replace(/[^a-z0-9]/gi,'_')}`;
+  return `
+    <div class="notif-card ${n.lida ? '' : 'nao-lida'}" id="card-${previewId}">
+      <div class="notif-card-header">
+        <span class="notif-card-dir">${n.dirLabel}</span>
+        <span class="notif-card-time">${fmtDataHora(n.alterado_em)}</span>
+      </div>
+      <div class="notif-card-nome">${n.nome}</div>
+      <div class="notif-card-lotacao">${n.lotacao}</div>
+      <div class="notif-card-actions">
+        <button class="btn-preview-notif"
+                onclick="togglePreviewNotif('${previewId}', ${JSON.stringify(n).replace(/"/g,"'")})">
+          🔍 Pré-visualizar
+        </button>
+        ${n.lida
+          ? '<span class="tag-ciente">✓ Ciente em ' + fmtDataHora(
+              JSON.parse(localStorage.getItem('dpe_notif_cientes')||'{}')[n.id]?.em
+            ) + '</span>'
+          : `<button class="btn-ciente" onclick="marcarCiente('${n.id}')">✓ Ciente</button>`
+        }
+      </div>
+      <div id="${previewId}" style="display:none"></div>
+    </div>`;
+}
+
+// ── Toggle preview de alteração ─────────────────────────
+function togglePreviewNotif(previewId, n) {
+  const el = document.getElementById(previewId);
+  if (!el) return;
+  
+  if (el.style.display !== 'none') { el.style.display='none'; return; }
+  
+  const e    = n.entry;
+  const base = n.base;
+  
+  const LABELS = {
+    p1e1_ini:'P1 Etapa 1 Início', p1e1_fim:'P1 Etapa 1 Fim',
+    p1e2_ini:'P1 Etapa 2 Início', p1e2_fim:'P1 Etapa 2 Fim',
+    p1e3_ini:'P1 Etapa 3 Início', p1e3_fim:'P1 Etapa 3 Fim',
+    p2e1_ini:'P2 Etapa 1 Início', p2e1_fim:'P2 Etapa 1 Fim',
+    p2e2_ini:'P2 Etapa 2 Início', p2e2_fim:'P2 Etapa 2 Fim',
+    p2e3_ini:'P2 Etapa 3 Início', p2e3_fim:'P2 Etapa 3 Fim',
+    portaria_p1:'Portaria P1',    portaria_p2:'Portaria P2',
+  };
+  
+  const campos = Object.keys(LABELS);
+  let rows = '';
+  let temDiff = false;
+  
+  campos.forEach(c => {
+    const atual = e[c] || '';
+    const orig  = base[c] || '';
+    if (!atual && !orig) return;
+    const diff = atual !== orig;
+    if (diff) temDiff = true;
+    rows += `
+      <div class="notif-preview-row">
+        <div class="notif-preview-label">${LABELS[c]}</div>
+        <div class="notif-preview-val ${diff ? 'destaque' : ''}">
+          ${atual || '—'}${diff && orig ? ' <span style="color:var(--cinza-mid);font-weight:400">(era: '+orig+')</span>' : ''}
+        </div>
+      </div>`;
+  });
+  
+  el.innerHTML = `
+    <div class="notif-preview">
+      <div class="notif-preview-title">
+        ${temDiff ? '⚠ Dados alterados em relação à referência 2026' : 'Dados preenchidos (sem diferença da referência)'}
+      </div>
+      <div class="notif-preview-row" style="background:var(--verde-pale)">
+        <div class="notif-preview-label">Portaria ref.</div>
+        <div class="notif-preview-val">${n.portaria}</div>
+      </div>
+      ${rows}
+    </div>`;
+  el.style.display = 'block';
+}
+
+// ── Marcar como ciente ──────────────────────────────────
+function marcarCiente(id) {
+  const cientes = JSON.parse(localStorage.getItem('dpe_notif_cientes') || '{}');
+  cientes[id] = { em: new Date().toISOString() };
+  localStorage.setItem('dpe_notif_cientes', JSON.stringify(cientes));
+  renderNotifList();
+  atualizarSino();
 }
 
 function atualizarFiltroLotacao() {
