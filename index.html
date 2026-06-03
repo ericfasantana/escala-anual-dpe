@@ -1533,7 +1533,8 @@ function initFiltros() {
         <label>Lotação / Defensoria</label>
         <div class="autocomplete-wrap">
           <input type="text" id="ac-lot-gabinete" class="autocomplete-input"
-                 placeholder="Digite para filtrar…">
+                 placeholder="Digite para filtrar…"
+                 oninput="renderEscalaConsolidada()">
           <button class="autocomplete-clear" onclick="limparAutocompleteLot('ac-lot-gabinete','ac-list-gabinete',renderEscalaConsolidada)" title="Limpar">✕</button>
           <div id="ac-list-gabinete" class="autocomplete-list"></div>
         </div>
@@ -1883,7 +1884,7 @@ function renderEscalaConsolidada() {
   let rows = getConsolidatedRows();
   if (mesF)  rows = rows.filter(r => r.mes == parseInt(mesF));
   if (dirF)  rows = rows.filter(r => r.dir === dirF);
-  if (lotF)  rows = rows.filter(r => r.lotacao === lotF);
+  if (lotF)  rows = rows.filter(r => r.lotacao?.toLowerCase().includes(lotF.toLowerCase()));
   if (nomeF) rows = rows.filter(r => r.nome.toLowerCase().includes(nomeF));
 
   if (!rows.length) {
@@ -2074,7 +2075,7 @@ function renderEscalaDiretoria() {
 
   // Aplicar filtros
   let linhas = todasLinhas;
-  if (lotSelVal) linhas = linhas.filter(r => r.lotacao === lotSelVal);
+  if (lotSelVal) linhas = linhas.filter(r => r.lotacao?.toLowerCase().includes(lotSelVal.toLowerCase()));
   if (nomeQ)    linhas = linhas.filter(r => r.nome.toLowerCase().includes(nomeQ));
 
   // Agrupar por mês
@@ -2094,7 +2095,8 @@ function renderEscalaDiretoria() {
         <div class="autocomplete-wrap">
           <input type="text" id="ac-lot-dir" class="autocomplete-input"
                  value="${lotSelVal}"
-                 placeholder="Digite para filtrar…">
+                 placeholder="Digite para filtrar…"
+                 oninput="renderEscalaDiretoria()">
           <button class="autocomplete-clear" onclick="limparAutocompleteLot('ac-lot-dir','ac-list-dir',renderEscalaDiretoria)" title="Limpar">✕</button>
           <div id="ac-list-dir" class="autocomplete-list"></div>
         </div>
