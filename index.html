@@ -806,6 +806,21 @@ function renderDiretoria(dir) {
   if (painelEl) painelEl.innerHTML = renderPainelMesDiretoria(dir);
 }
 
+
+function filtrarDefensores() {
+  const q = (document.getElementById('busca-defensor')?.value || '').toLowerCase().trim();
+  document.querySelectorAll('#defensores-list .defensor-row').forEach(row => {
+    const nome = (row.querySelector('.defensor-name')?.textContent || '').toLowerCase();
+    const lot  = (row.querySelector('.defensor-lotacao')?.textContent || '').toLowerCase();
+    if (!q || nome.includes(q) || lot.includes(q)) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+      row.classList.remove('expanded');
+    }
+  });
+}
+
 function renderDefensorRow(d, idx, dir) {
   const key  = `${d.matricula}_${idx}`;
   const saved = currentData[key] || {};
@@ -1387,7 +1402,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') doLogin();
   });
 
-  // Restaura sessão após F5
   const savedUser = sessionStorage.getItem('dpe_user');
   const savedAno  = sessionStorage.getItem('dpe_ano');
   if (savedUser && DIRETORIAS[savedUser]) {
